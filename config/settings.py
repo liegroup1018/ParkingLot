@@ -51,6 +51,8 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.accounts.apps.AccountsConfig",   # Track 1: IAM — User model + AuditLogs
     "apps.inventory.apps.InventoryConfig", # Track 2: Core Inventory — ParkingSpots + LotOccupancy
+    "apps.gates.apps.GatesConfig",         # Track 3: Entry Gates — Tickets + OCC entry flow
+    "apps.payments.apps.PaymentsConfig",   # Track 4: Pricing Engine & Exit Flow
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

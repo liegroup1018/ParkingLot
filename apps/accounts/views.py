@@ -76,34 +76,45 @@ class RefreshTokenView(TokenRefreshView):
     permission_classes = [AllowAny]
 
 
+
+"""
+用户点击退出登录时，前端发送 Refresh Token →后端把这个 Token 加入黑名单（拉黑） →这个 Refresh Token 再也不能用了 → 登出完成
+"""
 class LogoutView(APIView):
     """
-    POST /api/v1/auth/logout/
+    api接口：POST /api/v1/auth/logout/ （请求方式是 Post 对应 Post接口）
 
-    Blacklist the supplied refresh token, effectively ending the session.
+    功能：Blacklist the supplied refresh token, effectively ending the session.
 
-    Request body
+    Request body (前端要传输哪些数据)
     ------------
     { "refresh": "<refresh_token>" }
     """
 
+    # 必须登录才能访问登出接口
     permission_classes = [IsAuthenticated]
 
     def post(self, request) -> Response:
+        # 1. 从前端传的数据里拿 refresh token
         refresh_token = request.data.get("refresh")
+
+        # 2. 如果没传 refresh token → 返回 400 错误
         if not refresh_token:
             return Response(
                 {"success": False, "error": {"code": "VALIDATION_ERROR", "message": "refresh token is required."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
+            # 3. 尝试把 token 加入黑名单
             token = RefreshToken(refresh_token)
             token.blacklist()
+        # 4. 如果 token 无效/过期/格式错误 → 报错
         except TokenError as exc:
             return Response(
                 {"success": False, "error": {"code": "TOKEN_INVALID", "message": str(exc)}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # 5. 拉黑成功 → 返回登出成功
         logger.info("User %s logged out.", request.user.username)
         return Response({"success": True, "message": "Logged out successfully."}, status=status.HTTP_200_OK)
 

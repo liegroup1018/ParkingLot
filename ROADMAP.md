@@ -22,17 +22,17 @@ This roadmap breaks down the `system_design.md` into logical, sequential **Track
 - [x] **Task 2.3:** Implement Admin API `POST /api/v1/spots` to seed the database with initial spot capacity.
 - [x] **Task 2.4:** Write a Django management command to automatically initialize the `LotOccupancy` aggregate table based on `ParkingSpots` data.
 
-## Track 3: Entry Gates & Hardware Integration (`gate-entry-flow`)
+## Track 3: Entry Gates & Hardware Integration (`gate-entry-flow`) ✅ COMPLETE
 
 *Goal: Handle the incoming traffic, ticket generation, and high-concurrency race conditions (Strategy A).*
 
-- [ ] **Task 3.1:** Create `Tickets` model with entry constraints (vehicle_type, assigned_size, entry_time).
-- [ ] **Task 3.2:** Implement OCC logic inside `POST /api/v1/gates/entry`:
-  - [ ] Validate `vehicle_type` against remaining space in `LotOccupancy`.
-  - [ ] Use `F() expressions` or manual `version` CAS to safely decrement `current_count` and increment `version`.
-  - [ ] If successful, generate unique `ticket_code` and create `Tickets` record.
-  - [ ] Return 409 Conflict if OCC version mismatch occurs (prompting client retry) or lot is full.
-- [ ] **Task 3.3:** Implement `POST /api/v1/gates/{gate_id}/override` for manual openings. Write logs to `AuditLogs`.
+- [x] **Task 3.1:** Create `Tickets` model with entry constraints (vehicle_type, assigned_size, entry_time).
+- [x] **Task 3.2:** Implement OCC logic inside `POST /api/v1/gates/entry`:
+  - [x] Validate `vehicle_type` against remaining space in `LotOccupancy`.
+  - [x] Use `F() expressions` or manual `version` CAS to safely decrement `current_count` and increment `version`.
+  - [x] If successful, generate unique `ticket_code` and create `Tickets` record.
+  - [x] Return 409 Conflict if OCC version mismatch occurs (prompting client retry) or lot is full.
+- [x] **Task 3.3:** Implement `POST /api/v1/gates/{gate_id}/override` for manual openings. Write logs to `AuditLogs`.
 
 ## Track 4: Pricing Engine & Exit Flow (`pricing-exit-flow`)
 

@@ -30,7 +30,7 @@ class ParkingTokenObtainPairSerializer(TokenObtainPairSerializer):
     is_2fa_ok   : bool — True if the user has successfully verified TOTP
     username    : str  — human-readable claim for frontend display
     """
-
+    # 生成新的 Token
     @classmethod
     def get_token(cls, user: User):
         token = super().get_token(user)
@@ -42,10 +42,14 @@ class ParkingTokenObtainPairSerializer(TokenObtainPairSerializer):
         # The view layer decides whether to issue a full-access token or a
         # limited "2FA pending" token.
         token["has_2fa"] = user.has_2fa_configured
-        return token
+        return token # 返回的 token 包含哪些内容
 
+    """
+    普通用户：账号密码正确 → 直接发 Token (不需要执行 validate())
+    管理员：账号密码 + 验证码都正确（validate()） → 才发 Token
+    """
     def validate(self, attrs: dict) -> dict:
-        data = super().validate(attrs)
+        data = super().validate(attrs) # 验证用户名和密码
         user: User = self.user
 
         # For Admin accounts that have a TOTP secret, require the OTP code.
