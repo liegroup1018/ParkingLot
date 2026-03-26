@@ -135,6 +135,7 @@ class UserListCreateView(generics.ListCreateAPIView):
             return UserCreateSerializer
         return UserReadSerializer
 
+    # 必须定义这个函数，以确保需要返回哪些数据
     def get_queryset(self):
         # Optimise: only fetch columns needed for the list view, ordered by username.
         return (
@@ -143,6 +144,7 @@ class UserListCreateView(generics.ListCreateAPIView):
             .order_by("username")
         )
 
+    # POST 传过来的 JSON 数据，被 DRF 解析后存储在 request.data（字典类型） 属性中，供我在函数里直接使用。
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
         # Audit log is created automatically via the post_save signal.

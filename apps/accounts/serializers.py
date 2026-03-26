@@ -110,7 +110,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "password",
             "password_confirm",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id"] # 忽略 id 的值
 
     def validate(self, attrs: dict) -> dict:
         if attrs["password"] != attrs.pop("password_confirm"):
