@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Lot Occupancy Dashboard</h2>
+  <p>Real-time view of parking capacity across all spot sizes</p>
+</div>
+
+<!-- Stat Cards -->
+<div class="card-grid" id="occupancy-cards">
+  <!-- Filled by JS -->
+</div>
+
+<!-- Recent Tickets Table -->
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+    <h3 style="font-size:1.125rem; font-weight:700;">Recent Tickets</h3>
+    <button class="btn btn-outline" onclick="loadRecentTickets()" id="refresh-tickets-btn">↻ Refresh</button>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="data-table" id="tickets-table">
+      <thead>
+        <tr>
+          <th>Ticket Code</th>
+          <th>Vehicle</th>
+          <th>Spot Size</th>
+          <th>Status</th>
+          <th>Entry Time</th>
+        </tr>
+      </thead>
+      <tbody id="tickets-body">
+        <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:32px;">Loading tickets…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ─── Occupancy Cards ──────────────────────────────────
+  const ICON_MAP = {
+    COMPACT:   { icon: '🏍', css: 'compact' },
+    REGULAR:   { icon: '🚗', css: 'regular' },
+    OVERSIZED: { icon: '🚛', css: 'oversized' },
+  };
+
+  async function loadOccupancy() {
+    // Use the inventory API endpoint directly
+    const res = await apiFetch(`${API_BASE}/spots/occupancy/`);
+    if (!res) return;
+
+    let rows = [];
+    if (res.ok) {
+      const json = await res.json();
+      rows = json.data || json.results || json || [];
+    }
+
+    // If no dedicated endpoint, fall back to building from LotOccupancy data
+    // Try alternative: the gates tickets or raw endpoint
+    if (!Array.isArray(rows) || rows.length === 0) {
+      // Build mock from known sizes
+      rows = [
+        { spot_size: 'COMPACT', current_count: 0, total_capacity: 0 },
+        { spot_size: 'REGULAR', current_count: 0, total_capacity: 0 },
+        { spot_size: 'OVERSIZED', current_count: 0, total_capacity: 0 },
+      ];
+    }
+
+    const container = document.getElementById('occupancy-cards');
+    let totalUsed = 0, totalCap = 0;
+
+    let html = '';
+    for (const row of rows) {
+      const map = ICON_MAP[row.spot_size] || { icon: '📦', css: 'total' };
+      const available = (row.total_capacity || 0) - (row.current_count || 0);
+      const pct = row.total_capacity > 0 ? Math.round((row.current_count / row.total_capacity) * 100) : 0;
+      const barClass = pct < 60 ? 'low' : pct < 85 ? 'mid' : 'high';
+
+      totalUsed += (row.current_count || 0);
+      totalCap += (row.total_capacity || 0);
+
+      html += `
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-label">${row.spot_size}</span>
+            <div class="stat-icon ${map.css}">${map.icon}</div>
+          </div>
+          <div class="stat-value">${available}</div>
+          <div class="stat-sub">${row.current_count} / ${row.total_capacity} occupied</div>
+          <div class="progress-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill ${barClass}" style="width:${pct}%"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Total summary card
+    const totalAvail = totalCap - totalUsed;
+    const totalPct = totalCap > 0 ? Math.round((totalUsed / totalCap) * 100) : 0;
+    const totalBar = totalPct < 60 ? 'low' : totalPct < 85 ? 'mid' : 'high';
+
+    html += `
+      <div class="card stat-card">
+        <div class="stat-header">
+          <span class="stat-label">TOTAL</span>
+          <div class="stat-icon total">🅿</div>
+        </div>
+        <div class="stat-value">${totalAvail}</div>
+        <div class="stat-sub">${totalUsed} / ${totalCap} occupied · ${totalPct}%</div>
+        <div class="progress-wrap">
+          <div class="progress-bar">
+            <div class="progress-fill ${totalBar}" style="width:${totalPct}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  // ─── Recent Tickets ───────────────────────────────────
+  async function loadRecentTickets() {
+    const res = await apiFetch(`${API_BASE}/gates/tickets/?status=OPEN`);
+    if (!res) return;
+
+    const json = await res.json();
+    const tickets = json.data || json.results || [];
+    const tbody = document.getElementById('tickets-body');
+
+    if (tickets.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">No open tickets</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = tickets.slice(0, 15).map(t => {
+      const badgeCss = t.status === 'OPEN' ? 'badge-open' : t.status === 'PAID' ? 'badge-paid' : 'badge-voided';
+      const entryTime = new Date(t.entry_time).toLocaleString();
+      return `
+        <tr>
+          <td><code style="color:var(--accent-hover);font-family:'JetBrains Mono',monospace;">${t.ticket_code}</code></td>
+          <td>${t.vehicle_type}</td>
+          <td>${t.assigned_size}</td>
+          <td><span class="badge ${badgeCss}">${t.status}</span></td>
+          <td style="color:var(--text-secondary);">${entryTime}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ─── Auto-refresh every 15 seconds ────────────────────
+  loadOccupancy();
+  loadRecentTickets();
+  setInterval(loadOccupancy, 15000);
+  setInterval(loadRecentTickets, 30000);
+</script>
+{% endblock %}

@@ -180,4 +180,4 @@ The HTML interface is strictly designed as a separate track after the core backe
 * **How it Connects:** The Django backend will serve base HTML templates. These templates will include lightweight JavaScript (using `fetch()` or AJAX) to communicate synchronously with the Django REST Framework (DRF) APIs.
 * **Interfaces:**
   * **Attendant Dashboard:** An HTML interface for staff to input ticket numbers, view dynamic pricing returned by `/api/v1/tickets/scan`, and submit payments to `/api/v1/payments`.
-  * **Admin Dashboard:** We will leverage Django's powerful built-in `django.contrib.admin` for CRUD operations on users and spots, supplemented by custom charting views that pull from `/api/v1/reports/revenue`.
+  * **Admin Dashboard:** While we can optionally use `django.contrib.admin` for basic CRUD, we will strictly build a custom HTML/CSS dashboard interface for management to view real-time occupancy, update pricing dynamically, and visualize revenue analytics.

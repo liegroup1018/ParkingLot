@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Ticket{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Process Ticket</h2>
+  <p>Scan or enter a ticket code to calculate the parking fee</p>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <!-- Alert -->
+  <div class="alert alert-error" id="scan-error"></div>
+
+  <!-- Input Form -->
+  <form id="scan-form">
+    <div class="form-group">
+      <label class="form-label" for="ticket-code">Ticket Code</label>
+      <input class="form-input" type="text" id="ticket-code"
+             placeholder="e.g. TKT-A1B2C3D4"
+             autocomplete="off"
+             autofocus
+             required
+             style="font-size:1.25rem; padding:16px; text-transform:uppercase; letter-spacing:0.1em;">
+    </div>
+    <button class="btn btn-primary btn-lg btn-block" type="submit" id="scan-btn">
+      🔍 Scan Ticket
+    </button>
+  </form>
+</div>
+
+<!-- Fee Display (hidden until scan succeeds) -->
+<div class="card fee-display" id="fee-result" style="max-width:640px; margin-top:24px;">
+  <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Amount Due</div>
+  <div class="fee-amount" id="fee-amount">$0.00</div>
+
+  <div class="fee-detail" id="fee-details">
+    <!-- Filled by JS -->
+  </div>
+
+  <div style="margin-top:28px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+    <button class="btn btn-success btn-lg" id="proceed-pay-btn" onclick="proceedToCheckout()">
+      💳 Proceed to Payment
+    </button>
+    <button class="btn btn-outline btn-lg" onclick="resetScan()">
+      ↻ Scan Another
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const form = document.getElementById('scan-form');
+  const errorEl = document.getElementById('scan-error');
+  const feeResult = document.getElementById('fee-result');
+  const scanBtn = document.getElementById('scan-btn');
+
+  let lastScanData = null;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.remove('visible');
+    feeResult.classList.remove('visible');
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<span class="spinner"></span> Scanning…';
+
+    const ticketCode = document.getElementById('ticket-code').value.trim().toUpperCase();
+
+    try {
+      const res = await apiFetch(`${API_BASE}/tickets/scan`, {
+        method: 'POST',
+        body: JSON.stringify({ ticket_code: ticketCode }),
+      });
+
+      if (!res) return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data.message || data.detail || 'Ticket not found or already paid';
+        errorEl.textContent = `⚠ ${msg}`;
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      // Store for checkout
+      lastScanData = data.data || data;
+
+      // Display fee
+      const fee = parseFloat(lastScanData.amount_owed || 0);
+      document.getElementById('fee-amount').textContent = `¥${fee.toFixed(2)}`;
+
+      // Detail items
+      const details = document.getElementById('fee-details');
+      details.innerHTML = `
+        <div class="fee-detail-item">
+          <div class="fee-detail-label">Ticket Code</div>
+          <div class="fee-detail-value">${lastScanData.ticket_code || ticketCode}</div>
+        </div>
+        <div class="fee-detail-item">
+          <div class="fee-detail-label">Vehicle</div>
+          <div class="fee-detail-value">${lastScanData.vehicle_type || '—'}</div>
+        </div>
+        <div class="fee-detail-item">
+          <div class="fee-detail-label">Duration</div>
+          <div class="fee-detail-value">${lastScanData.duration_hours || '—'} hrs</div>
+        </div>
+        <div class="fee-detail-item">
+          <div class="fee-detail-label">Spot Size</div>
+          <div class="fee-detail-value">${lastScanData.assigned_size || '—'}</div>
+        </div>
+        <div class="fee-detail-item">
+          <div class="fee-detail-label">Rate</div>
+          <div class="fee-detail-value">¥${parseFloat(lastScanData.hourly_rate || 0).toFixed(2)}/hr</div>
+        </div>
+      `;
+
+      feeResult.classList.add('visible');
+
+    } catch (err) {
+      errorEl.textContent = '⚠ Network error — please try again';
+      errorEl.classList.add('visible');
+    } finally {
+      scanBtn.disabled = false;
+      scanBtn.textContent = '🔍 Scan Ticket';
+    }
+  });
+
+  function proceedToCheckout() {
+    if (lastScanData) {
+      // Store scan result for the checkout page
+      // Normalize the field name for the checkout page
+      lastScanData._display_fee = parseFloat(lastScanData.amount_owed || 0);
+      sessionStorage.setItem('pending_ticket', JSON.stringify(lastScanData));
+      window.location.href = '/attendant/checkout/';
+    }
+  }
+
+  function resetScan() {
+    lastScanData = null;
+    feeResult.classList.remove('visible');
+    errorEl.classList.remove('visible');
+    document.getElementById('ticket-code').value = '';
+    document.getElementById('ticket-code').focus();
+  }
+</script>
+{% endblock %}

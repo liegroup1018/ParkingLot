@@ -53,6 +53,7 @@ LOCAL_APPS = [
     "apps.inventory.apps.InventoryConfig", # Track 2: Core Inventory — ParkingSpots + LotOccupancy
     "apps.gates.apps.GatesConfig",         # Track 3: Entry Gates — Tickets + OCC entry flow
     "apps.payments.apps.PaymentsConfig",   # Track 4: Pricing Engine & Exit Flow
+    "apps.admin_ui.apps.AdminUiConfig",    # Track 6: Admin Dashboard
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -141,6 +142,7 @@ USE_TZ = True
 # Static files
 # -----------------------------------------------------------------
 STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

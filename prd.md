@@ -34,9 +34,17 @@ The Parking Lot Management System is a centralized, online-only software solutio
 * **Lost Tickets**: In the event of a lost physical ticket, the system defaults to charging the maximum daily rate. (Note: LPR integration is out of scope for the current iteration).
 
 ### 3.5 Admin Dashboard
-* **Space Management**: CRUD (Create, Read, Update, Delete) operations for managing the layout and count of physical parking spaces.
-* **Real-Time Monitoring**: Live visibility into lot occupancy and gate statuses.
-* **Financial Reporting**: Access to historical and live revenue logs.
+* **UI/UX & Technology**: A modern, sleek web interface styled with Tailwind CSS. The dashboard will use asynchronous JavaScript polling (AJAX/Fetch) to automatically refresh charts and KPIs in real-time without requiring a page reload.
+* **Key Performance Indicators (KPIs)**: Upon login, the dashboard prominently displays:
+  1. Total Revenue Today
+  2. Current Occupancy Percentage
+  3. Total Vehicles Entered Today
+* **Visualizations & Charts**: 
+  * A line chart displaying revenue trends over the last 7 days.
+  * A pie chart tracking occupancy distribution by parking spot size (Compact, Regular, Oversized).
+  * A bar chart illustrating peak entry hours throughout the day.
+* **User & Staff Management**: Dedicated interface for Admins to manage (Create, Read, Update, Delete) Attendant user accounts.
+* **Space Management**: CRUD operations for managing the layout and count of physical parking spaces.
 * **Rate Controls**: The ability to modify pricing structures on the fly.
 * **Manual Overrides**: Admins and authorized attendants can trigger manual gate overrides safely from the dashboard.
 

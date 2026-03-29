@@ -60,9 +60,10 @@ This roadmap breaks down the `system_design.md` into logical, sequential **Track
 
 ## Track 6: Admin Dashboard & Analytics (`admin-dashboard`)
 
-*Goal: Provide real-time operational insights to management.*
+*Goal: Provide real-time operational insights to management with a custom HTML/CSS responsive interface.*
 
-- [ ] **Task 5.1:** Implement `GET /api/v1/lot/occupancy` (return rapid snapshots directly from `LotOccupancy` table).
-- [ ] **Task 5.2:** Implement `PUT /api/v1/pricing-rules/{rule_id}` to allow Admins to change rates dynamically.
-- [ ] **Task 5.3:** Implement `GET /api/v1/reports/revenue` aggregating records from the `Payments` table grouped by date via SQL.
-- [ ] **Task 5.4:** Implement background task (e.g., Celery or Django management cron) to scan for "abandoned" tickets (>7 days).
+- [ ] **Task 6.1:** Set up custom Admin HTML templates and CSS styling for the dashboard layout.
+- [ ] **Task 6.2:** Implement `GET /api/v1/lot/occupancy` and render rapid snapshots on the Admin UI.
+- [ ] **Task 6.3:** Implement `PUT /api/v1/pricing-rules/{rule_id}` and create a UI to allow Admins to change rates dynamically.
+- [ ] **Task 6.4:** Implement `GET /api/v1/reports/revenue` aggregating records via SQL and display as frontend charts/tables.
+- [ ] **Task 6.5:** Implement a background task (e.g., Celery or Django management cron) to scan for "abandoned" tickets (>7 days).
