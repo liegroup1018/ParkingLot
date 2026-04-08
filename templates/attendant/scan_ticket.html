@@ -68,7 +68,7 @@
     const ticketCode = document.getElementById('ticket-code').value.trim().toUpperCase();
 
     try {
-      const res = await apiFetch(`${API_BASE}/tickets/scan`, {
+      const res = await apiFetch(`${API_BASE}/tickets/scan/`, {
         method: 'POST',
         body: JSON.stringify({ ticket_code: ticketCode }),
       });

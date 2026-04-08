@@ -31,7 +31,7 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="bg-brand-500 text-white px-3 py-1 rounded-full text-xs font-semibold">{{ request.user.username }}</span>
-                    <a href="#" class="text-sm font-medium text-gray-300 hover:text-white transition">Sign Out</a>
+                    <a href="/api/v1/auth/logout/" class="text-sm font-medium text-gray-300 hover:text-white transition">Sign Out</a>
                 </div>
             </div>
         </div>
@@ -137,36 +137,43 @@
         let occChartInstance = null;
         let peakChartInstance = null;
 
+        // Get CSRF token from Django cookie for mutation requests
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
         });
 
         async function fetchDashboardData() {
-            const token = localStorage.getItem('access');
-            const headers = { 'Authorization': `Bearer ${token}` };
+            // Use session cookie auth (Django sets sessionid automatically)
+            const headers = { 'Accept': 'application/json' };
 
             // Fetch Occupancy
             try {
-                const res = await fetch('/api/v1/lot/occupancy/', { headers });
-                const data = await res.json();
-                updateOccupancy(data);
+                const res = await fetch('/api/v1/lot/occupancy/', { headers, credentials: 'same-origin' });
+                const json = await res.json();
+                updateOccupancy(json.data || json);
             } catch (err) { console.error('Occupancy fetch failed', err); }
 
             // Fetch Revenue
             try {
-                // Fetching past 7 days
                 const end = new Date();
                 const start = new Date();
                 start.setDate(end.getDate() - 7);
                 const query = `?start_date=${start.toISOString().split('T')[0]}&end_date=${end.toISOString().split('T')[0]}`;
-                const res = await fetch(`/api/v1/reports/revenue${query}`, { headers });
+                const res = await fetch(`/api/v1/reports/revenue/${query}`, { headers, credentials: 'same-origin' });
                 const data = await res.json();
                 updateRevenue(data);
             } catch (err) { console.error('Revenue fetch failed', err); }
-            
+
             // Fetch Peak Hours
             try {
-                const res = await fetch('/api/v1/reports/peak-hours', { headers });
+                const res = await fetch('/api/v1/reports/peak-hours/', { headers, credentials: 'same-origin' });
                 const data = await res.json();
                 updatePeakHours(data);
             } catch (err) { console.error('Peak fetch failed', err); }
@@ -180,11 +187,11 @@
             const capacities = [];
             const occupancies = [];
 
-            // Example data structure assumed array
+            // LotOccupancy serializer fields: spot_size, total_capacity, current_count, available
             data.forEach(item => {
                 totalCap += item.total_capacity;
                 currentCounts += item.current_count;
-                labels.push(`${item.vehicle_type} (${item.spot_size})`);
+                labels.push(item.spot_size);
                 capacities.push(item.total_capacity);
                 occupancies.push(item.current_count);
             });
@@ -267,14 +274,15 @@
         document.getElementById('pricingForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const ruleId = document.getElementById('ruleId').value;
-            const token = localStorage.getItem('access');
-            
+            const csrfToken = getCookie('csrftoken');
+
             try {
                 const res = await fetch(`/api/v1/pricing-rules/${ruleId}/`, {
                     method: 'PUT',
+                    credentials: 'same-origin',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
                     },
                     body: JSON.stringify({
                         hourly_rate: document.getElementById('hourlyRate').value,
@@ -286,7 +294,8 @@
                     closePricingModal();
                     document.getElementById('pricingForm').reset();
                 } else {
-                    alert('Failed to update pricing rule.');
+                    const err = await res.json();
+                    alert('Failed: ' + JSON.stringify(err));
                 }
             } catch(err) {
                 console.error(err);

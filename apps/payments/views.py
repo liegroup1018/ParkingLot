@@ -17,6 +17,7 @@ from apps.gates.models import Ticket, TicketStatus
 from apps.inventory.models import LotOccupancy
 from apps.payments.models import PricingRule, Payment
 from apps.accounts.permissions import IsAdminRole
+from apps.accounts.models import AuditLog, AuditActionType
 from apps.payments.serializers import (
     TicketScanSerializer, 
     PaymentCreateSerializer,
@@ -190,12 +191,13 @@ class PaymentProcessView(APIView):
 
 class PricingRuleUpdateView(generics.RetrieveUpdateAPIView):
     """
-    GET /api/v1/pricing-rules/{id}
-    PUT/PATCH /api/v1/pricing-rules/{id}
+    GET /api/v1/pricing-rules/{id}/
+    PUT/PATCH /api/v1/pricing-rules/{id}/
     Allows admins to update pricing rates dynamically.
+    Writes to AuditLog on every successful mutation (PRD §4.2).
     """
     queryset = PricingRule.objects.all()
-    
+
     def get_permissions(self):
         if self.request.method in ("PUT", "PATCH"):
             return [IsAdminRole()]
@@ -205,6 +207,34 @@ class PricingRuleUpdateView(generics.RetrieveUpdateAPIView):
         if self.request.method in ("PUT", "PATCH"):
             return PricingRuleUpdateSerializer
         return PricingRuleReadSerializer
+
+    def perform_update(self, serializer):
+        rule = self.get_object()
+        old_values = {
+            "hourly_rate": str(rule.hourly_rate),
+            "max_daily_rate": str(rule.max_daily_rate),
+            "is_active": rule.is_active,
+        }
+        updated = serializer.save()
+        new_values = {
+            "hourly_rate": str(updated.hourly_rate),
+            "max_daily_rate": str(updated.max_daily_rate),
+            "is_active": updated.is_active,
+        }
+        # Extract client IP
+        ip = self.request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        if not ip:
+            ip = self.request.META.get("REMOTE_ADDR")
+        AuditLog.objects.create(
+            user=self.request.user,
+            action_type=AuditActionType.PRICE_CHANGE,
+            details={"rule_id": rule.pk, "old": old_values, "new": new_values},
+            ip_address=ip,
+        )
+        logger.info(
+            "Admin %s updated PricingRule %d: %s → %s",
+            self.request.user.username, rule.pk, old_values, new_values,
+        )
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -233,10 +263,18 @@ class RevenueReportView(APIView):
             qs.annotate(date=TruncDate("payment_time"))
             .values("date")
             .annotate(total_revenue=Sum("amount"), payment_count=Count("id"))
-            .order_by("-date")
+            .order_by("date")
         )
 
-        return Response(report)
+        # Serialize date/Decimal to JSON-safe types for frontend Chart.js
+        return Response([
+            {
+                "date": str(row["date"]),
+                "total_revenue": float(row["total_revenue"] or 0),
+                "payment_count": row["payment_count"],
+            }
+            for row in report
+        ])
 
 class PeakHoursReportView(APIView):
     """
@@ -249,8 +287,10 @@ class PeakHoursReportView(APIView):
     def get(self, request, *args, **kwargs):
         qs = Ticket.objects.all()
         date_filter = request.query_params.get("date")
-        if date_filter:
-            qs = qs.filter(entry_time__date=date_filter)
+        if not date_filter:
+            # Default to today so the chart matches its "Today" label
+            date_filter = timezone.now().date()
+        qs = qs.filter(entry_time__date=date_filter)
 
         report = (
             qs.annotate(hour=ExtractHour("entry_time"))

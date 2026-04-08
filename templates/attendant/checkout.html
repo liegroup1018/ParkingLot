@@ -166,7 +166,7 @@
     };
 
     try {
-      const res = await apiFetch(`${API_BASE}/payments`, {
+      const res = await apiFetch(`${API_BASE}/payments/`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
