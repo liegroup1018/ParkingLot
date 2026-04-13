@@ -73,6 +73,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
+LOGIN_URL = "/admin-dashboard/login/"
 
 # -----------------------------------------------------------------
 # Templates

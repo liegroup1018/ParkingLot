@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — ParkingLot</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <style>
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+      padding: 20px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 48px 40px;
+      box-shadow: var(--shadow-lg);
+    }
+    .login-brand {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .login-brand h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .login-brand p {
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+    .alert-container {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <h1>🅿 ParkingLot</h1>
+        <p>Administrator Sign In</p>
+      </div>
+
+      <div class="alert-container">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-error visible">
+              ⚠ {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <form method="POST" action="{% url 'admin_login' %}">
+        {% csrf_token %}
+        {% if request.GET.next %}
+          <input type="hidden" name="next" value="{{ request.GET.next }}">
+        {% endif %}
+        
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input class="form-input" type="text" name="username" id="username" placeholder="Enter your admin username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input class="form-input" type="password" name="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="totp_code">2FA Code (TOTP)</label>
+          <input class="form-input" type="text" name="totp_code" id="totp_code" placeholder="Enter 6-digit authenticator code" autocomplete="one-time-code" required pattern="[0-9]{6}">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">
+          Secure Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
