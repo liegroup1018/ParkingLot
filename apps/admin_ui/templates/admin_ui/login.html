@@ -55,38 +55,107 @@
       </div>
 
       <div class="alert-container">
-        {% if messages %}
-          {% for message in messages %}
-            <div class="alert alert-error visible">
-              ⚠ {{ message }}
-            </div>
-          {% endfor %}
-        {% endif %}
+        <div id="error-alert" class="alert alert-error" style="display:none;"></div>
       </div>
 
-      <form method="POST" action="{% url 'admin_login' %}">
-        {% csrf_token %}
-        {% if request.GET.next %}
-          <input type="hidden" name="next" value="{{ request.GET.next }}">
-        {% endif %}
-        
+      <!-- Plain HTML form — submission is intercepted by JS below.
+           No action="" or csrf_token needed: we call the JWT API via fetch(). -->
+      <form id="login-form">
         <div class="form-group">
           <label class="form-label" for="username">Username</label>
-          <input class="form-input" type="text" name="username" id="username" placeholder="Enter your admin username" autocomplete="username" required>
+          <input class="form-input" type="text" name="username" id="username"
+                 placeholder="Enter your admin username" autocomplete="username" required>
         </div>
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
-          <input class="form-input" type="password" name="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+          <input class="form-input" type="password" name="password" id="password"
+                 placeholder="Enter your password" autocomplete="current-password" required>
         </div>
         <div class="form-group">
           <label class="form-label" for="totp_code">2FA Code (TOTP)</label>
-          <input class="form-input" type="text" name="totp_code" id="totp_code" placeholder="Enter 6-digit authenticator code" autocomplete="one-time-code" required pattern="[0-9]{6}">
+          <input class="form-input" type="text" name="totp_code" id="totp_code"
+                 placeholder="Enter 6-digit authenticator code"
+                 autocomplete="one-time-code" inputmode="numeric"
+                 pattern="[0-9]{6}" maxlength="6" required>
         </div>
-        <button class="btn btn-primary btn-lg btn-block" type="submit">
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="submit-btn">
           Secure Sign In
         </button>
       </form>
     </div>
   </div>
+
+  <script>
+    // If a valid token is already in sessionStorage, skip login.
+    (function () {
+      const token = sessionStorage.getItem('admin_access_token');
+      if (token) {
+        window.location.replace('/admin-dashboard/');
+      }
+    })();
+
+    const form      = document.getElementById('login-form');
+    const errorEl   = document.getElementById('error-alert');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function showError(msg) {
+      errorEl.textContent = '⚠ ' + msg;
+      errorEl.style.display = 'block';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing in…';
+
+      const payload = {
+        username:  document.getElementById('username').value.trim(),
+        password:  document.getElementById('password').value,
+        totp_code: document.getElementById('totp_code').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/v1/auth/login/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          // The API returns { "detail": "..." } or our envelope { "error": { "message": "..." } }
+          const msg = data?.error?.message
+                   || data?.detail
+                   || data?.non_field_errors?.[0]
+                   || 'Login failed. Please check your credentials and TOTP code.';
+          showError(msg);
+          return;
+        }
+
+        // Validate that the authenticated user is an ADMIN.
+        // The JWT payload embeds `role` (set in ParkingTokenObtainPairSerializer).
+        const role = data?.role;
+        if (role && role !== 'ADMIN') {
+          showError('Access denied. Administrator privileges required.');
+          return;
+        }
+
+        // Store tokens in sessionStorage (tab-scoped; cleared when browser closes).
+        sessionStorage.setItem('admin_access_token',  data.access);
+        sessionStorage.setItem('admin_refresh_token', data.refresh);
+
+        window.location.replace('/admin-dashboard/');
+
+      } catch (err) {
+        showError('Network error. Please try again.');
+        console.error(err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Secure Sign In';
+      }
+    });
+  </script>
 </body>
 </html>

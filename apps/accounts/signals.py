@@ -6,7 +6,7 @@ Keeping the signal lightweight — heavy business logic belongs in services.
 """
 import logging
 
-from django.contrib.auth import user_logged_in, user_login_failed
+from django.contrib.auth import user_logged_in, user_login_failed, user_logged_out
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -57,6 +57,20 @@ def log_login_failed(sender, credentials, request, **kwargs) -> None:
         action_type=AuditActionType.LOGIN_FAILED,
         user=None,
         details={"attempted_username": credentials.get("username", "")},
+        ip_address=ip,
+    )
+
+
+@receiver(user_logged_out)
+def log_logout(sender, request, user, **kwargs) -> None:
+    """Record a logout event."""
+    from apps.accounts.models import AuditLog, AuditActionType  # noqa: PLC0415
+
+    ip = _get_client_ip(request)
+    AuditLog.objects.log_action(
+        action_type=AuditActionType.LOGOUT,
+        user=user,
+        details={"username": getattr(user, "username", "")},
         ip_address=ip,
     )
 

@@ -19,6 +19,7 @@ import logging
 
 import pyotp
 from django.contrib.auth import get_user_model
+from django.contrib.auth.signals import user_logged_out
 from django.utils.decorators import method_decorator
 from django.views.decorators.debug import sensitive_post_parameters
 from rest_framework import generics, status
@@ -114,6 +115,7 @@ class LogoutView(APIView):
                 {"success": False, "error": {"code": "TOKEN_INVALID", "message": str(exc)}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        user_logged_out.send(sender=request.user.__class__, request=request, user=request.user)
         # 5. 拉黑成功 → 返回登出成功
         logger.info("User %s logged out.", request.user.username)
         return Response({"success": True, "message": "Logged out successfully."}, status=status.HTTP_200_OK)

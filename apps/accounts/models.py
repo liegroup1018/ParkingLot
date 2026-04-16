@@ -44,6 +44,7 @@ class AuditActionType(models.TextChoices):
     USER_DEACTIVATED = "USER_DEACTIVATED", _("User Account Deactivated")
     LOGIN_SUCCESS = "LOGIN_SUCCESS", _("Successful Login")
     LOGIN_FAILED = "LOGIN_FAILED", _("Failed Login Attempt")
+    LOGOUT = "LOGOUT", _("User Logout")
     PASSWORD_CHANGED = "PASSWORD_CHANGED", _("Password Changed")
     TICKET_VOIDED = "TICKET_VOIDED", _("Ticket Voided")
     OCCUPANCY_RESET = "OCCUPANCY_RESET", _("Lot Occupancy Reset")
@@ -184,4 +185,3 @@ class AuditLog(models.Model):
     def __str__(self) -> str:
         username = self.user.username if self.user else "system"
         return f"[{self.timestamp:%Y-%m-%d %H:%M:%S}] {username} — {self.action_type}"
-

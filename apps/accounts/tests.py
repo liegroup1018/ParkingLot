@@ -134,6 +134,13 @@ class LoginViewTest(TestCase):
         self.assertIn("access", resp.data)
         self.assertIn("refresh", resp.data)
         self.assertEqual(resp.data["user"]["role"], UserRole.ATTENDANT)
+        self.assertEqual(
+            AuditLog.objects.filter(
+                action_type=AuditActionType.LOGIN_SUCCESS,
+                user=self.attendant,
+            ).count(),
+            1,
+        )
 
     def test_login_wrong_password_returns_401(self):
         resp = self.client.post(
@@ -142,6 +149,10 @@ class LoginViewTest(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(
+            AuditLog.objects.filter(action_type=AuditActionType.LOGIN_FAILED).count(),
+            1,
+        )
 
     def test_admin_without_2fa_secret_can_login(self):
         """Admin with no 2FA configured should still be able to log in."""
@@ -167,6 +178,12 @@ class LoginViewTest(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        admin.refresh_from_db()
+        self.assertIsNone(admin.last_login)
+        self.assertEqual(
+            AuditLog.objects.filter(action_type=AuditActionType.LOGIN_FAILED).count(),
+            1,
+        )
 
         # With correct TOTP code — should succeed
         valid_code = pyotp.TOTP(secret).now()
@@ -176,6 +193,13 @@ class LoginViewTest(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            AuditLog.objects.filter(
+                action_type=AuditActionType.LOGIN_SUCCESS,
+                user=admin,
+            ).count(),
+            1,
+        )
 
 
 class LogoutViewTest(TestCase):
@@ -198,6 +222,13 @@ class LogoutViewTest(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            AuditLog.objects.filter(
+                action_type=AuditActionType.LOGOUT,
+                user=self.user,
+            ).count(),
+            1,
+        )
 
     def test_reuse_blacklisted_refresh_fails(self):
         self.client.post(

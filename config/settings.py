@@ -73,7 +73,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
-LOGIN_URL = "/admin-dashboard/login/"
+# LOGIN_URL removed (Track 7): no session-based views remain.
 
 # -----------------------------------------------------------------
 # Templates
@@ -153,8 +153,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # -----------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        # JWT-only (Track 7): SessionAuthentication removed — all clients
+        # (Attendant UI + Admin UI) now authenticate via Bearer token.
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",

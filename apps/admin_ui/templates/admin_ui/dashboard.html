@@ -30,8 +30,8 @@
                     <span class="text-xl font-bold text-white tracking-widest">🅿️ PARKING<span class="font-light text-brand-100">CLOUD</span> ADMIN</span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span class="bg-brand-500 text-white px-3 py-1 rounded-full text-xs font-semibold">{{ request.user.username }}</span>
-                    <a href="/api/v1/auth/logout/" class="text-sm font-medium text-gray-300 hover:text-white transition">Sign Out</a>
+                    <span class="bg-brand-500 text-white px-3 py-1 rounded-full text-xs font-semibold" id="nav-username">—</span>
+                    <button onclick="handleLogout()" class="text-sm font-medium text-gray-300 hover:text-white transition cursor-pointer">Sign Out</button>
                 </div>
             </div>
         </div>
@@ -133,63 +133,147 @@
     </div>
 
     <script>
-        let revChartInstance = null;
-        let occChartInstance = null;
-        let peakChartInstance = null;
+        // -----------------------------------------------------------------------
+        // Auth guard — redirect to login if no token in sessionStorage
+        // -----------------------------------------------------------------------
+        const ACCESS_KEY  = 'admin_access_token';
+        const REFRESH_KEY = 'admin_refresh_token';
 
-        // Get CSRF token from Django cookie for mutation requests
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-            return null;
+        function getAccessToken() {
+            return sessionStorage.getItem(ACCESS_KEY);
         }
 
+        (function guardPage() {
+            if (!getAccessToken()) {
+                window.location.replace('/admin-dashboard/login/');
+            }
+        })();
+
+        // -----------------------------------------------------------------------
+        // Populate username in nav bar from the /me/ endpoint
+        // -----------------------------------------------------------------------
+        async function loadCurrentUser() {
+            try {
+                const res = await apiFetch('/api/v1/auth/users/me/');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('nav-username').textContent = data.username || '—';
+                }
+            } catch (_) {}
+        }
+
+        // -----------------------------------------------------------------------
+        // JWT-aware fetch wrapper (mirrors the attendant UI's apiFetch).
+        // Automatically attaches the Bearer token; on 401 attempts one
+        // silent token refresh before giving up and redirecting to login.
+        // -----------------------------------------------------------------------
+        async function apiFetch(url, options = {}) {
+            const token = getAccessToken();
+            const defaultHeaders = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+            };
+            options.headers = { ...defaultHeaders, ...(options.headers || {}) };
+
+            let res = await fetch(url, options);
+
+            if (res.status === 401) {
+                // Attempt silent token refresh
+                const refreshed = await tryRefresh();
+                if (!refreshed) {
+                    sessionStorage.removeItem(ACCESS_KEY);
+                    sessionStorage.removeItem(REFRESH_KEY);
+                    window.location.replace('/admin-dashboard/login/');
+                    return res;
+                }
+                // Retry original request with the new token
+                options.headers['Authorization'] = 'Bearer ' + getAccessToken();
+                res = await fetch(url, options);
+            }
+            return res;
+        }
+
+        async function tryRefresh() {
+            const refresh = sessionStorage.getItem(REFRESH_KEY);
+            if (!refresh) return false;
+            try {
+                const res = await fetch('/api/v1/auth/refresh/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh }),
+                });
+                if (!res.ok) return false;
+                const data = await res.json();
+                sessionStorage.setItem(ACCESS_KEY, data.access);
+                if (data.refresh) sessionStorage.setItem(REFRESH_KEY, data.refresh);
+                return true;
+            } catch (_) { return false; }
+        }
+
+        // -----------------------------------------------------------------------
+        // Logout — blacklist the refresh token via the API, then clear storage
+        // -----------------------------------------------------------------------
+        async function handleLogout() {
+            const refresh = sessionStorage.getItem(REFRESH_KEY);
+            if (refresh) {
+                try {
+                    await apiFetch('/api/v1/auth/logout/', {
+                        method: 'POST',
+                        body: JSON.stringify({ refresh }),
+                    });
+                } catch (_) { /* best-effort */ }
+            }
+            sessionStorage.removeItem(ACCESS_KEY);
+            sessionStorage.removeItem(REFRESH_KEY);
+            window.location.replace('/admin-dashboard/login/');
+        }
+
+        // -----------------------------------------------------------------------
+        // Chart instances
+        // -----------------------------------------------------------------------
+        let revChartInstance  = null;
+        let occChartInstance  = null;
+        let peakChartInstance = null;
+
         document.addEventListener('DOMContentLoaded', () => {
+            loadCurrentUser();
             fetchDashboardData();
         });
 
         async function fetchDashboardData() {
-            // Use session cookie auth (Django sets sessionid automatically)
-            const headers = { 'Accept': 'application/json' };
-
             // Fetch Occupancy
             try {
-                const res = await fetch('/api/v1/lot/occupancy/', { headers, credentials: 'same-origin' });
+                const res = await apiFetch('/api/v1/lot/occupancy/');
                 const json = await res.json();
                 updateOccupancy(json.data || json);
             } catch (err) { console.error('Occupancy fetch failed', err); }
 
-            // Fetch Revenue
+            // Fetch Revenue (last 7 days)
             try {
-                const end = new Date();
+                const end   = new Date();
                 const start = new Date();
                 start.setDate(end.getDate() - 7);
                 const query = `?start_date=${start.toISOString().split('T')[0]}&end_date=${end.toISOString().split('T')[0]}`;
-                const res = await fetch(`/api/v1/reports/revenue/${query}`, { headers, credentials: 'same-origin' });
+                const res  = await apiFetch(`/api/v1/reports/revenue/${query}`);
                 const data = await res.json();
                 updateRevenue(data);
             } catch (err) { console.error('Revenue fetch failed', err); }
 
             // Fetch Peak Hours
             try {
-                const res = await fetch('/api/v1/reports/peak-hours/', { headers, credentials: 'same-origin' });
+                const res  = await apiFetch('/api/v1/reports/peak-hours/');
                 const data = await res.json();
                 updatePeakHours(data);
             } catch (err) { console.error('Peak fetch failed', err); }
         }
 
         function updateOccupancy(data) {
-            let totalCap = 0;
-            let currentCounts = 0;
-            
-            const labels = [];
-            const capacities = [];
-            const occupancies = [];
+            let totalCap = 0, currentCounts = 0;
+            const labels = [], capacities = [], occupancies = [];
 
-            // LotOccupancy serializer fields: spot_size, total_capacity, current_count, available
             data.forEach(item => {
-                totalCap += item.total_capacity;
+                totalCap      += item.total_capacity;
                 currentCounts += item.current_count;
                 labels.push(item.spot_size);
                 capacities.push(item.total_capacity);
@@ -197,15 +281,15 @@
             });
 
             const occPercent = totalCap === 0 ? 0 : Math.round((currentCounts / totalCap) * 100);
-            document.getElementById('kpi-occupancy').innerText = `${occPercent}%`;
+            document.getElementById('kpi-occupancy').innerText      = `${occPercent}%`;
             document.getElementById('kpi-occupancy-subs').innerText = `${totalCap - currentCounts} spots available`;
 
             const ctx = document.getElementById('occupancyChart').getContext('2d');
-            if(occChartInstance) occChartInstance.destroy();
+            if (occChartInstance) occChartInstance.destroy();
             occChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
                         data: occupancies,
                         backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#6366f1']
@@ -217,23 +301,20 @@
 
         function updateRevenue(data) {
             let totalRev = 0;
-            const labels = [];
-            const totals = [];
-            
+            const labels = [], totals = [];
             data.forEach(item => {
                 totalRev += item.total_revenue;
                 labels.push(item.date);
                 totals.push(item.total_revenue);
             });
-
             document.getElementById('kpi-revenue').innerText = `$${totalRev.toFixed(2)}`;
 
             const ctx = document.getElementById('revenueChart').getContext('2d');
-            if(revChartInstance) revChartInstance.destroy();
+            if (revChartInstance) revChartInstance.destroy();
             revChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
                         label: 'Daily Revenue ($)',
                         data: totals,
@@ -247,17 +328,17 @@
                 options: { responsive: true, maintainAspectRatio: false }
             });
         }
-        
+
         function updatePeakHours(data) {
-            const labels = data.map(i => `${i.hour}:00`);
+            const labels  = data.map(i => `${i.hour}:00`);
             const entries = data.map(i => i.entry_count);
 
             const ctx = document.getElementById('peakChart').getContext('2d');
-            if(peakChartInstance) peakChartInstance.destroy();
+            if (peakChartInstance) peakChartInstance.destroy();
             peakChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
                         label: 'Entries by Hour',
                         data: entries,
@@ -268,28 +349,22 @@
             });
         }
 
-        function openPricingModal() { document.getElementById('pricingModal').classList.remove('hidden'); }
+        function openPricingModal()  { document.getElementById('pricingModal').classList.remove('hidden'); }
         function closePricingModal() { document.getElementById('pricingModal').classList.add('hidden'); }
 
         document.getElementById('pricingForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const ruleId = document.getElementById('ruleId').value;
-            const csrfToken = getCookie('csrftoken');
 
             try {
-                const res = await fetch(`/api/v1/pricing-rules/${ruleId}/`, {
+                const res = await apiFetch(`/api/v1/pricing-rules/${ruleId}/`, {
                     method: 'PUT',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken,
-                    },
                     body: JSON.stringify({
-                        hourly_rate: document.getElementById('hourlyRate').value,
-                        max_daily_rate: document.getElementById('maxRate').value
-                    })
+                        hourly_rate:    document.getElementById('hourlyRate').value,
+                        max_daily_rate: document.getElementById('maxRate').value,
+                    }),
                 });
-                if(res.ok) {
+                if (res.ok) {
                     alert('Pricing updated successfully!');
                     closePricingModal();
                     document.getElementById('pricingForm').reset();
@@ -297,7 +372,7 @@
                     const err = await res.json();
                     alert('Failed: ' + JSON.stringify(err));
                 }
-            } catch(err) {
+            } catch (err) {
                 console.error(err);
                 alert('Network error.');
             }
