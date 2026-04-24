@@ -49,6 +49,7 @@ class ParkingTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs: dict) -> dict:
         # Authenticate first; invalid username/password already emits
         # Django's `user_login_failed` signal inside authenticate().
+        # 该函数会自动调用 authenticate() 验证用户名和密码，如果出现错误会发射 failed 信号
         TokenObtainSerializer.validate(self, attrs)
         user: User = self.user
         request = self.context.get("request")
