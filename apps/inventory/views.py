@@ -18,7 +18,7 @@ import logging
 
 from django.db.models import Count, Q
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -258,3 +258,27 @@ class LotOccupancyView(APIView):
         occupancy = LotOccupancy.objects.all().order_by("spot_size")
         serializer = LotOccupancySerializer(occupancy, many=True)
         return Response({"success": True, "data": serializer.data})
+
+
+# ──────────────────────────────────────────────────────────────────
+# Public occupancy snapshot — no authentication required.
+# Consumed by the public Lot Status page (/).
+# ──────────────────────────────────────────────────────────────────
+
+class PublicLotOccupancyView(APIView):
+    """
+    GET /api/v1/lot/occupancy/public/
+
+    Unauthenticated snapshot of the OCC table for the public
+    Lot Status page.  Returns only the fields a visitor needs:
+    spot_size, total_capacity, current_count, available.
+
+    Intentionally exposes no pricing, revenue, or user data.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        occupancy = LotOccupancy.objects.all().order_by("spot_size")
+        serializer = LotOccupancySerializer(occupancy, many=True)
+        return Response({"success": True, "data": serializer.data})
+

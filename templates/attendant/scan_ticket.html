@@ -132,7 +132,7 @@
       // Normalize the field name for the checkout page
       lastScanData._display_fee = parseFloat(lastScanData.amount_owed || 0);
       sessionStorage.setItem('pending_ticket', JSON.stringify(lastScanData));
-      window.location.href = '/attendant/checkout/';
+      window.location.href = '/attendant/app/checkout/';
     }
   }
 

@@ -1,9 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — ParkingLot</title>
+  <title>Login - ParkingLot</title>
+  <!-- Apply saved theme before paint to avoid flash -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem('pc-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+    })();
+  </script>
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <style>
@@ -15,6 +23,7 @@
       background: var(--bg-primary);
       padding: 20px;
     }
+
     .login-card {
       width: 100%;
       max-width: 420px;
@@ -24,10 +33,12 @@
       padding: 48px 40px;
       box-shadow: var(--shadow-lg);
     }
+
     .login-brand {
       text-align: center;
       margin-bottom: 36px;
     }
+
     .login-brand h1 {
       font-size: 1.75rem;
       font-weight: 800;
@@ -36,6 +47,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .login-brand p {
       margin-top: 8px;
       color: var(--text-secondary);
@@ -47,8 +59,20 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-brand">
-        <h1>🅿 ParkingLot</h1>
+        <h1>ParkingLot</h1>
         <p>Attendant Sign In</p>
+        <!-- Theme toggle -->
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn"
+                aria-label="Toggle light/dark mode" title="Toggle theme"
+                style="margin: 12px auto 0; display:flex;">
+          <svg class="icon-moon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
+          </svg>
+          <svg class="icon-sun" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <path stroke-linecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
       </div>
 
       <div class="alert alert-error" id="login-error"></div>
@@ -70,21 +94,96 @@
   </div>
 
   <script>
+    const ENTRY_URL = '/attendant/';
+    const DASHBOARD_URL = '/attendant/app/dashboard/';
+    const LOGIN_URL = '/api/v1/auth/login/';
+    const REFRESH_URL = '/api/v1/auth/refresh/';
+    const CURRENT_USER_URL = '/api/v1/auth/users/me/';
+
     const form = document.getElementById('login-form');
     const errorEl = document.getElementById('login-error');
     const loginBtn = document.getElementById('login-btn');
+
+    function clearTokens() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    }
+
+    async function refreshAccessToken(refresh) {
+      const response = await fetch(REFRESH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      localStorage.setItem('access_token', data.access);
+      if (data.refresh) {
+        localStorage.setItem('refresh_token', data.refresh);
+      }
+      return data.access;
+    }
+
+    async function hasValidSession() {
+      let access = localStorage.getItem('access_token');
+      const refresh = localStorage.getItem('refresh_token');
+
+      if (!access && !refresh) {
+        return false;
+      }
+
+      if (!access && refresh) {
+        access = await refreshAccessToken(refresh);
+      }
+
+      if (!access) {
+        clearTokens();
+        return false;
+      }
+
+      let response = await fetch(CURRENT_USER_URL, {
+        headers: { Authorization: `Bearer ${access}` },
+      });
+
+      if (response.ok) {
+        return true;
+      }
+
+      if (response.status === 401 && refresh) {
+        access = await refreshAccessToken(refresh);
+        if (!access) {
+          clearTokens();
+          return false;
+        }
+
+        response = await fetch(CURRENT_USER_URL, {
+          headers: { Authorization: `Bearer ${access}` },
+        });
+
+        if (response.ok) {
+          return true;
+        }
+      }
+
+      clearTokens();
+      return false;
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorEl.classList.remove('visible');
       loginBtn.disabled = true;
-      loginBtn.innerHTML = '<span class="spinner"></span> Signing in…';
+      loginBtn.innerHTML = '<span class="spinner"></span> Signing in...';
 
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
 
       try {
-        const res = await fetch('/api/v1/auth/login/', {
+        const res = await fetch(LOGIN_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password }),
@@ -93,31 +192,46 @@
 
         if (!res.ok) {
           const msg = data.detail || data.message || 'Invalid credentials';
-          errorEl.textContent = `⚠ ${msg}`;
+          errorEl.textContent = `Error: ${msg}`;
           errorEl.classList.add('visible');
           loginBtn.disabled = false;
           loginBtn.textContent = 'Sign In';
           return;
         }
 
-        // Store tokens
         localStorage.setItem('access_token', data.access);
         localStorage.setItem('refresh_token', data.refresh);
-
-        // Redirect to dashboard
-        window.location.href = '/attendant/';
+        window.location.href = DASHBOARD_URL;
       } catch (err) {
-        errorEl.textContent = '⚠ Network error — please try again';
+        errorEl.textContent = 'Error: Network error, please try again';
         errorEl.classList.add('visible');
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
       }
     });
 
-    // If already logged in, redirect
-    if (localStorage.getItem('access_token')) {
-      window.location.href = '/attendant/';
-    }
+    hasValidSession()
+      .then((isAuthenticated) => {
+        if (isAuthenticated) {
+          window.location.href = DASHBOARD_URL;
+        } else if (
+          window.location.pathname !== ENTRY_URL &&
+          window.location.pathname !== '/attendant/login/'
+        ) {
+          window.location.href = ENTRY_URL;
+        }
+      })
+      .catch(() => {
+        clearTokens();
+      });
+
+    // ── Theme toggle ─────────────────────────────────────────────
+    document.getElementById('theme-toggle-btn').addEventListener('click', function () {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('pc-theme', next);
+    });
   </script>
 </body>
 </html>

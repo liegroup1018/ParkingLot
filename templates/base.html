@@ -1,68 +1,83 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
+  <!-- Apply saved theme before paint to avoid flash -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem('pc-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var theme = saved || (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="ParkingLot Management System — Attendant Console">
-  <title>{% block title %}ParkingLot{% endblock %} — Attendant Console</title>
+  <meta name="description" content="ParkingLot Management System - Attendant Console">
+  <title>{% block title %}ParkingLot{% endblock %} - Attendant Console</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
   <div class="app-shell">
-
-    <!-- ──── Sidebar ──── -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <h1>🅿 ParkingLot</h1>
+        <h1>ParkingLot</h1>
         <p>Management System</p>
       </div>
 
       <ul class="sidebar-nav">
         <li>
-          <a href="{% url 'attendant:dashboard' %}"
-             class="{% if active_page == 'dashboard' %}active{% endif %}">
-            <span class="nav-icon">📊</span>
+          <a href="{% url 'attendant:dashboard' %}" class="{% if active_page == 'dashboard' %}active{% endif %}">
+            <span class="nav-icon">D</span>
             Dashboard
           </a>
         </li>
         <li>
-          <a href="{% url 'attendant:scan_ticket' %}"
-             class="{% if active_page == 'scan' %}active{% endif %}">
-            <span class="nav-icon">🎫</span>
+          <a href="{% url 'attendant:scan_ticket' %}" class="{% if active_page == 'scan' %}active{% endif %}">
+            <span class="nav-icon">S</span>
             Scan Ticket
           </a>
         </li>
         <li>
-          <a href="{% url 'attendant:checkout' %}"
-             class="{% if active_page == 'checkout' %}active{% endif %}">
-            <span class="nav-icon">💳</span>
+          <a href="{% url 'attendant:checkout' %}" class="{% if active_page == 'checkout' %}active{% endif %}">
+            <span class="nav-icon">C</span>
             Checkout
           </a>
         </li>
       </ul>
 
-      <!-- User info block -->
       <div class="sidebar-user">
-        <div class="avatar" id="user-avatar">—</div>
+        <div class="avatar" id="user-avatar">-</div>
         <div class="user-info">
-          <div class="user-name" id="user-display-name">Loading…</div>
-          <div class="user-role" id="user-display-role">—</div>
+          <div class="user-name" id="user-display-name">Loading...</div>
+          <div class="user-role" id="user-display-role">-</div>
         </div>
+        <!-- Theme toggle -->
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn"
+                aria-label="Toggle light/dark mode" title="Toggle theme">
+          <!-- Moon — visible in dark mode -->
+          <svg class="icon-moon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
+          </svg>
+          <!-- Sun — visible in light mode -->
+          <svg class="icon-sun" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <path stroke-linecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+        <button type="button" class="btn btn-outline btn-block" onclick="handleLogout()">
+          Sign Out
+        </button>
       </div>
     </aside>
 
-    <!-- ──── Main content ──── -->
     <main class="main-content">
       {% block content %}{% endblock %}
     </main>
-
   </div>
 
-  <!-- ──── Global JS ──── -->
   <script>
-    // ─── Token helpers ─────────────────────────────────────
     const API_BASE = '/api/v1';
 
     function getToken() {
@@ -73,49 +88,95 @@
       return localStorage.getItem('refresh_token');
     }
 
+    function clearTokens() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    }
+
     async function refreshAccessToken() {
       const refresh = getRefreshToken();
-      if (!refresh) { redirectToLogin(); return null; }
+      if (!refresh) {
+        clearTokens();
+        redirectToLogin();
+        return null;
+      }
+
       try {
         const res = await fetch(`${API_BASE}/auth/refresh/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh }),
         });
-        if (!res.ok) { redirectToLogin(); return null; }
+
+        if (!res.ok) {
+          clearTokens();
+          redirectToLogin();
+          return null;
+        }
+
         const data = await res.json();
         localStorage.setItem('access_token', data.access);
-        if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+        if (data.refresh) {
+          localStorage.setItem('refresh_token', data.refresh);
+        }
         return data.access;
-      } catch { redirectToLogin(); return null; }
+      } catch {
+        clearTokens();
+        redirectToLogin();
+        return null;
+      }
     }
 
     async function apiFetch(url, options = {}) {
       let token = getToken();
-      if (!token) { redirectToLogin(); return null; }
+      if (!token) {
+        redirectToLogin();
+        return null;
+      }
 
       options.headers = options.headers || {};
-      options.headers['Authorization'] = `Bearer ${token}`;
+      options.headers.Authorization = `Bearer ${token}`;
       options.headers['Content-Type'] = options.headers['Content-Type'] || 'application/json';
 
       let res = await fetch(url, options);
       if (res.status === 401) {
         token = await refreshAccessToken();
-        if (!token) return null;
-        options.headers['Authorization'] = `Bearer ${token}`;
+        if (!token) {
+          return null;
+        }
+        options.headers.Authorization = `Bearer ${token}`;
         res = await fetch(url, options);
       }
       return res;
     }
 
     function redirectToLogin() {
-      window.location.href = '/attendant/login/';
+      window.location.href = '/attendant/';
     }
 
-    // ─── Load user info ────────────────────────────────────
+    async function handleLogout() {
+      const refresh = getRefreshToken();
+      if (refresh) {
+        try {
+          await apiFetch(`${API_BASE}/auth/logout/`, {
+            method: 'POST',
+            body: JSON.stringify({ refresh }),
+          });
+        } catch (_) {
+          // Best-effort logout: local cleanup still runs below.
+        }
+      }
+
+      clearTokens();
+      window.location.replace('/attendant/');
+    }
+
     async function loadUserInfo() {
       const res = await apiFetch(`${API_BASE}/auth/users/me/`);
-      if (!res || !res.ok) return;
+      if (!res || !res.ok) {
+        return;
+      }
+
       const data = await res.json();
       const username = data.username || data.data?.username || '?';
       const role = data.role || data.data?.role || '?';
@@ -124,12 +185,24 @@
       document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
     }
 
-    // Init
     if (!getToken()) {
       redirectToLogin();
     } else {
       loadUserInfo();
     }
+
+    // ── Theme toggle ────────────────────────────────────────────────────
+    (function () {
+      const toggleBtn = document.getElementById('theme-toggle-btn');
+      if (!toggleBtn) return;
+      toggleBtn.addEventListener('click', function () {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        const next = current === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('pc-theme', next);
+      });
+    })();
   </script>
   {% block extra_js %}{% endblock %}
 </body>

@@ -19,7 +19,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.accounts.managers import AuditLogManager
+from apps.accounts.managers import AuditLogManager, CustomUserManager
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +78,8 @@ class User(AbstractUser):
             "Only Admin accounts require 2FA per PRD §4.2."
         ),
     )
+
+    objects = CustomUserManager()
 
     class Meta:
         verbose_name = _("User")

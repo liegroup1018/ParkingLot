@@ -34,3 +34,30 @@ This walkthrough covers the creation of the dedicated HTML interface and session
 
 > [!TIP]
 > Navigating dynamically to `/admin-dashboard/` while disconnected will cleanly append `?next=/admin-dashboard/` providing smooth re-entry post authentication.
+
+---
+
+# Admin User & Staff Management UI Walkthrough
+
+This walkthrough covers the addition of the "Staff & User Management" interface to the Admin Dashboard (Track 9).
+
+## Changes Made
+
+### 1. Modifying the Admin Dashboard Template
+- **File**: `apps/admin_ui/templates/admin_ui/dashboard.html`
+- Added a new HTML section to display a list of registered staff members using a responsive data table.
+- Added a "Create New User" modal with a complete form to provision new Business Administrators and Booth Attendants.
+
+### 2. Implementing Client-Side API Integration
+- **File**: `apps/admin_ui/templates/admin_ui/dashboard.html`
+- Implemented `fetchUsers()` using the existing `apiFetch()` wrapper to fetch user data asynchronously.
+- Implemented dynamic rendering of table rows, properly mapping the API's JSON response to user-friendly HTML elements (including badges for roles and 2FA status).
+- Added logic to handle the "Create New User" form submission, validating passwords locally and making a `POST` request to `/api/v1/auth/users/`. Upon success, the UI refreshes the user table without reloading the page.
+
+### 3. Implementation Record
+- **File**: `track9_implementation_record.md`
+- Documented the rationale, files changed, and behavioral outcome of this feature.
+
+## What Was Tested
+- Executed `python manage.py check` to verify the codebase integrity.
+- **Validation Result**: `0 issues`. The frontend integration does not disrupt any backend routing or settings.

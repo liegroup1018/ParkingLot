@@ -7,6 +7,7 @@ and enforces the "append-only" semantics of the table.
 """
 import logging
 
+from django.contrib.auth.models import UserManager
 from django.db import models
 
 logger = logging.getLogger(__name__)
@@ -55,3 +56,21 @@ class AuditLogManager(models.Manager):
             user.username if user else "system",
         )
         return entry
+
+class CustomUserManager(UserManager):
+    """
+    Custom manager for the User model to handle superuser creation correctly.
+    """
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        from apps.accounts.models import UserRole
+        
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("role", UserRole.ADMIN)
+
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+
+        return self._create_user(username, email, password, **extra_fields)

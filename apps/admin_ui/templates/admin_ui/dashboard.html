@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -21,9 +22,19 @@
             }
         }
     </script>
+    <script>
+        // Apply saved theme before first paint to prevent FOUC
+        (function () {
+            var saved = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (saved === 'dark' || (!saved && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
-    <nav class="bg-brand-900 border-b border-gray-200">
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen dark:bg-gray-900 dark:text-gray-100">
+    <nav class="bg-brand-900 border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
@@ -31,6 +42,10 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="bg-brand-500 text-white px-3 py-1 rounded-full text-xs font-semibold" id="nav-username">—</span>
+                    <button onclick="toggleTheme()" aria-label="Toggle theme" class="text-gray-300 hover:text-white transition cursor-pointer p-1 rounded">
+                        <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                        <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    </button>
                     <button onclick="handleLogout()" class="text-sm font-medium text-gray-300 hover:text-white transition cursor-pointer">Sign Out</button>
                 </div>
             </div>
@@ -39,8 +54,8 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-900">Operational Overview</h1>
-            <button onclick="fetchDashboardData()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded shadow transition inline-flex items-center">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Operational Overview</h1>
+            <button onclick="fetchDashboardData()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded shadow transition inline-flex items-center dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 Refresh Data
             </button>
@@ -48,25 +63,25 @@
 
         <!-- KPI Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Revenue (Last 7 Days)</h2>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 dark:bg-gray-800">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Total Revenue (Last 7 Days)</h2>
                 <div class="mt-2 flex items-baseline">
-                    <span class="text-4xl font-extrabold text-gray-900" id="kpi-revenue">$--.--</span>
+                    <span class="text-4xl font-extrabold text-gray-900 dark:text-white" id="kpi-revenue">$--.--</span>
                 </div>
             </div>
             
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
-                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Overall Occupancy</h2>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 dark:bg-gray-800">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Overall Occupancy</h2>
                 <div class="mt-2 flex items-baseline">
-                    <span class="text-4xl font-extrabold text-gray-900" id="kpi-occupancy">--%</span>
+                    <span class="text-4xl font-extrabold text-gray-900 dark:text-white" id="kpi-occupancy">--%</span>
                 </div>
-                <div class="mt-1 text-sm text-gray-500" id="kpi-occupancy-subs">-- spots available</div>
+                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400" id="kpi-occupancy-subs">-- spots available</div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Dynamic Pricing Module</h2>
-                <p class="mt-2 text-sm text-gray-600 mb-3">Adjust default hourly rates interactively.</p>
-                <button onclick="openPricingModal()" class="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:shadow font-medium py-2 px-4 rounded transition">
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500 dark:bg-gray-800">
+                <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">Dynamic Pricing Module</h2>
+                <p class="mt-2 text-sm text-gray-600 mb-3 dark:text-gray-400">Adjust default hourly rates interactively.</p>
+                <button onclick="openPricingModal()" class="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:shadow font-medium py-2 px-4 rounded transition dark:bg-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-800">
                     Configure Rules
                 </button>
             </div>
@@ -75,16 +90,14 @@
         <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <!-- Revenue Line Chart -->
-            <div class="bg-white rounded-xl shadow p-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-4">Daily Revenue Trends</h3>
+            <div class="bg-white rounded-xl shadow p-6 dark:bg-gray-800">
                 <div class="relative h-64 w-full">
                     <canvas id="revenueChart"></canvas>
                 </div>
             </div>
 
             <!-- Occupancy Pie Chart -->
-            <div class="bg-white rounded-xl shadow p-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-4">Current Capacity Usage</h3>
+            <div class="bg-white rounded-xl shadow p-6 dark:bg-gray-800">
                 <div class="relative h-64 w-full flex justify-center">
                     <canvas id="occupancyChart"></canvas>
                 </div>
@@ -92,10 +105,37 @@
         </div>
 
         <!-- Peak Hours Bar Chart -->
-        <div class="bg-white rounded-xl shadow p-6 w-full">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Peak Entry Times (Today)</h3>
+        <div class="bg-white rounded-xl shadow p-6 w-full mb-8 dark:bg-gray-800">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 dark:text-white">Peak Entry Times (Today)</h3>
             <div class="relative h-64 w-full">
                 <canvas id="peakChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Staff & User Management -->
+        <div class="bg-white rounded-xl shadow p-6 w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Staff & User Management</h3>
+                <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition inline-flex items-center text-sm">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Create New User
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2FA Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </main>
@@ -127,6 +167,61 @@
                 <div class="pt-4 flex justify-end space-x-3">
                     <button type="button" onclick="closePricingModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Cancel</button>
                     <button type="submit" class="px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div id="userModal" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-75 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Create New User</h3>
+                <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <form id="userForm" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                        <input type="text" id="newUsername" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="newEmail" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                        <input type="text" id="newFirstName" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                        <input type="text" id="newLastName" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                        <select id="newRole" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                            <option value="ATTENDANT">Parking Attendant</option>
+                            <option value="ADMIN">Management Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                        <input type="password" id="newPassword" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+                        <input type="password" id="newPasswordConfirm" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    </div>
+                </div>
+                
+                <div id="userFormError" class="hidden text-sm text-red-600 mt-2 bg-red-50 p-2 rounded border border-red-200"></div>
+
+                <div class="pt-4 flex justify-end space-x-3">
+                    <button type="button" onclick="closeUserModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">Create User</button>
                 </div>
             </form>
         </div>
@@ -266,6 +361,48 @@
                 const data = await res.json();
                 updatePeakHours(data);
             } catch (err) { console.error('Peak fetch failed', err); }
+
+            // Fetch Users
+            fetchUsers();
+        }
+
+        async function fetchUsers() {
+            try {
+                const res = await apiFetch('/api/v1/auth/users/');
+                if (res.ok) {
+                    const data = await res.json();
+                    updateUsersTable(data);
+                }
+            } catch (err) { console.error('Users fetch failed', err); }
+        }
+
+        function updateUsersTable(users) {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                
+                const roleBadgeClass = u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+                const faBadge = u.has_2fa_configured 
+                    ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Enabled</span>`
+                    : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Not Setup</span>`;
+                
+                const date = new Date(u.date_joined).toLocaleDateString();
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#${u.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${u.username}</div>
+                        <div class="text-sm text-gray-500">${u.email || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${roleBadgeClass}">${u.role_display}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">${faBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function updateOccupancy(data) {
@@ -375,6 +512,77 @@
             } catch (err) {
                 console.error(err);
                 alert('Network error.');
+            }
+        });
+
+        // -----------------------------------------------------------------------
+        // User Modal Logic
+        // -----------------------------------------------------------------------
+        function openUserModal() {
+            document.getElementById('userFormError').classList.add('hidden');
+            document.getElementById('userModal').classList.remove('hidden');
+        }
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+            document.getElementById('userForm').reset();
+        }
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('userFormError');
+            errorDiv.classList.add('hidden');
+
+            const pwd = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('newPasswordConfirm').value;
+            if (pwd !== confirm) {
+                errorDiv.innerText = "Passwords do not match.";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            const payload = {
+                username: document.getElementById('newUsername').value,
+                email: document.getElementById('newEmail').value,
+                first_name: document.getElementById('newFirstName').value,
+                last_name: document.getElementById('newLastName').value,
+                role: document.getElementById('newRole').value,
+                password: pwd,
+                password_confirm: confirm
+            };
+
+            try {
+                const res = await apiFetch('/api/v1/auth/users/', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert('User created successfully!');
+                    closeUserModal();
+                    fetchUsers();
+                } else {
+                    const err = await res.json();
+                    
+                    const formatError = (val) => {
+                        if (Array.isArray(val)) return val.join(', ');
+                        if (typeof val === 'object' && val !== null) {
+                            if (val.error) return formatError(val.error);
+                            if (val.detail) return val.detail;
+                            return Object.entries(val)
+                                .filter(([k]) => k !== 'success' && k !== 'code')
+                                .map(([k, v]) => `${k}: ${formatError(v)}`)
+                                .join(' | ');
+                        }
+                        return String(val);
+                    };
+
+                    errorDiv.innerText = formatError(err) || "Failed to create user.";
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                errorDiv.innerText = "Network error occurred.";
+                errorDiv.classList.remove('hidden');
             }
         });
     </script>

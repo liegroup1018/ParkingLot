@@ -8,6 +8,7 @@ from django.urls import path
 from .views import (
     AttendantCheckoutView,
     AttendantDashboardView,
+    AttendantEntryView,
     AttendantLoginView,
     AttendantScanTicketView,
 )
@@ -15,8 +16,9 @@ from .views import (
 app_name = "attendant"
 
 urlpatterns = [
-    path("login/",    AttendantLoginView.as_view(),       name="login"),
-    path("",          AttendantDashboardView.as_view(),    name="dashboard"),
-    path("scan/",     AttendantScanTicketView.as_view(),   name="scan_ticket"),
-    path("checkout/", AttendantCheckoutView.as_view(),     name="checkout"),
+    path("", AttendantEntryView.as_view(), name="entry"),
+    path("login/", AttendantLoginView.as_view(), name="login"),
+    path("app/dashboard/", AttendantDashboardView.as_view(), name="dashboard"),
+    path("app/scan/", AttendantScanTicketView.as_view(), name="scan_ticket"),
+    path("app/checkout/", AttendantCheckoutView.as_view(), name="checkout"),
 ]

@@ -15,6 +15,13 @@ from django.shortcuts import render
 from django.views import View
 
 
+class AttendantEntryView(View):
+    """Render the public attendant entry point."""
+
+    def get(self, request):
+        return render(request, "attendant/login.html")
+
+
 class AttendantLoginView(View):
     """Render the login page (no server-side auth required)."""
 
