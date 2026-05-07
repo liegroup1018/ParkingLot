@@ -33,7 +33,7 @@ from django.conf import settings
 from django.db import transaction
 
 from apps.accounts.models import AuditActionType, AuditLog
-from apps.inventory.models import LotOccupancy
+from apps.inventory.services import InventoryService
 
 from .models import Ticket, TicketStatus
 
@@ -84,7 +84,7 @@ class EntryService:
         OCCConflictError — lot effectively full under sustained concurrency.
         """
         # Quick pre-check before entering the retry loop
-        initial_size = LotOccupancy.available_size_for_vehicle(vehicle_type)
+        initial_size = InventoryService.available_size_for_vehicle(vehicle_type)
         if initial_size is None:
             logger.info(
                 "Entry denied: lot full for vehicle_type=%s gate=%s plate=%s",
@@ -94,7 +94,7 @@ class EntryService:
 
         # OCC retry loop (Task 3.2 — retry logic)
         for attempt in range(1, _MAX_RETRIES + 1):
-            size = LotOccupancy.available_size_for_vehicle(vehicle_type)
+            size = InventoryService.available_size_for_vehicle(vehicle_type)
             if size is None:
                 # Lot drained between attempts
                 raise LotFullError(
@@ -102,7 +102,7 @@ class EntryService:
                     f"(detected after {attempt} attempt(s))"
                 )
 
-            reserved = LotOccupancy.attempt_reserve(size)
+            reserved = InventoryService.attempt_reserve(size)
             if reserved:
                 # OCC succeeded — create the ticket inside a transaction
                 ticket = EntryService._create_ticket(

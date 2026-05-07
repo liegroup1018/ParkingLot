@@ -19,6 +19,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import LotOccupancy, ParkingSpot, SpotSizeType, SpotStatus, VehicleType
+from .services import InventoryService
 
 User = get_user_model()
 
@@ -103,57 +104,57 @@ class LotOccupancyOCCTest(TestCase):
     # ── Reserve ──────────────────────────────────────────────────
 
     def test_reserve_success(self):
-        result = LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
+        result = InventoryService.attempt_reserve(SpotSizeType.COMPACT)
         self.assertTrue(result)
         row = LotOccupancy.objects.get(spot_size=SpotSizeType.COMPACT)
         self.assertEqual(row.current_count, 1)
         self.assertEqual(row.version, 1)
 
     def test_reserve_fails_when_full(self):
-        result = LotOccupancy.attempt_reserve(SpotSizeType.REGULAR)
+        result = InventoryService.attempt_reserve(SpotSizeType.REGULAR)
         self.assertFalse(result)
 
     def test_reserve_increments_version(self):
-        LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
-        LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
+        InventoryService.attempt_reserve(SpotSizeType.COMPACT)
+        InventoryService.attempt_reserve(SpotSizeType.COMPACT)
         row = LotOccupancy.objects.get(spot_size=SpotSizeType.COMPACT)
         # capacity=2, both succeed
         self.assertEqual(row.current_count, 2)
         self.assertEqual(row.version, 2)
 
     def test_reserve_third_attempt_fails(self):
-        LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
-        LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
-        result = LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
+        InventoryService.attempt_reserve(SpotSizeType.COMPACT)
+        InventoryService.attempt_reserve(SpotSizeType.COMPACT)
+        result = InventoryService.attempt_reserve(SpotSizeType.COMPACT)
         self.assertFalse(result)
 
     def test_reserve_nonexistent_size_returns_false(self):
-        result = LotOccupancy.attempt_reserve("NONEXISTENT")
+        result = InventoryService.attempt_reserve("NONEXISTENT")
         self.assertFalse(result)
 
     # ── Release ──────────────────────────────────────────────────
 
     def test_release_success(self):
         # First reserve one
-        LotOccupancy.attempt_reserve(SpotSizeType.COMPACT)
-        result = LotOccupancy.attempt_release(SpotSizeType.COMPACT)
+        InventoryService.attempt_reserve(SpotSizeType.COMPACT)
+        result = InventoryService.attempt_release(SpotSizeType.COMPACT)
         self.assertTrue(result)
         row = LotOccupancy.objects.get(spot_size=SpotSizeType.COMPACT)
         self.assertEqual(row.current_count, 0)
 
     def test_release_at_zero_returns_false(self):
-        result = LotOccupancy.attempt_release(SpotSizeType.COMPACT)
+        result = InventoryService.attempt_release(SpotSizeType.COMPACT)
         self.assertFalse(result)
 
     # ── Overflow detection ────────────────────────────────────────
 
     def test_available_size_motorcycle_prefers_compact(self):
-        size = LotOccupancy.available_size_for_vehicle(VehicleType.MOTORCYCLE)
+        size = InventoryService.available_size_for_vehicle(VehicleType.MOTORCYCLE)
         self.assertEqual(size, SpotSizeType.COMPACT)
 
     def test_available_size_car_skips_compact(self):
         # No OVERSIZED row → car should return None (REGULAR is full)
-        size = LotOccupancy.available_size_for_vehicle(VehicleType.CAR)
+        size = InventoryService.available_size_for_vehicle(VehicleType.CAR)
         self.assertIsNone(size)
 
     def test_available_size_falls_back_on_full_compact(self):
@@ -162,7 +163,7 @@ class LotOccupancyOCCTest(TestCase):
         LotOccupancy.objects.filter(
             spot_size=SpotSizeType.COMPACT
         ).update(current_count=2)
-        size = LotOccupancy.available_size_for_vehicle(VehicleType.MOTORCYCLE)
+        size = InventoryService.available_size_for_vehicle(VehicleType.MOTORCYCLE)
         self.assertIsNone(size)
 
     def test_available_size_oversized_fallback(self):
@@ -175,11 +176,11 @@ class LotOccupancyOCCTest(TestCase):
         LotOccupancy.objects.filter(
             spot_size=SpotSizeType.COMPACT
         ).update(current_count=2)
-        size = LotOccupancy.available_size_for_vehicle(VehicleType.MOTORCYCLE)
+        size = InventoryService.available_size_for_vehicle(VehicleType.MOTORCYCLE)
         self.assertEqual(size, SpotSizeType.OVERSIZED)
 
     def test_truck_only_accepts_oversized(self):
-        size = LotOccupancy.available_size_for_vehicle(VehicleType.TRUCK)
+        size = InventoryService.available_size_for_vehicle(VehicleType.TRUCK)
         self.assertIsNone(size)  # No OVERSIZED row in setUp
 
 

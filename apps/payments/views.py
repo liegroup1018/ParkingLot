@@ -24,6 +24,7 @@ from apps.payments.serializers import (
     PricingRuleReadSerializer,
     PricingRuleUpdateSerializer
 )
+from apps.payments.services import PricingService, PaymentService, PricingError, PaymentError
 
 
 class TicketScanView(APIView):
@@ -49,31 +50,13 @@ class TicketScanView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Calculate duration
-        now = timezone.now()
-        duration = now - ticket.entry_time
-        duration_hours = math.ceil(duration.total_seconds() / 3600.0)
-        if duration_hours < 1:
-            duration_hours = 1
-
-        # Look up PricingRule
-        rule = PricingRule.objects.filter(
-            vehicle_type=ticket.vehicle_type,
-            spot_size=ticket.assigned_size,
-            is_active=True,
-        ).first()
-
-        if not rule:
+        try:
+            fee_details = PricingService.calculate_fee(ticket)
+        except PricingError as e:
             return Response(
-                {"error": "No active pricing rule found for this vehicle and spot size."},
+                {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # Calculate fee — max_daily_rate scales per calendar day
-        num_days = max(1, math.ceil(duration.total_seconds() / 86400.0))
-        calculated_fee = Decimal(duration_hours) * rule.hourly_rate
-        daily_cap = rule.max_daily_rate * num_days
-        final_fee = min(calculated_fee, daily_cap)
 
         return Response({
             "ticket_id": ticket.id,
@@ -81,11 +64,7 @@ class TicketScanView(APIView):
             "vehicle_type": ticket.vehicle_type,
             "assigned_size": ticket.assigned_size,
             "entry_time": ticket.entry_time,
-            "duration_hours": duration_hours,
-            "duration_days": num_days,
-            "hourly_rate": rule.hourly_rate,
-            "max_daily_rate": rule.max_daily_rate,
-            "amount_owed": final_fee
+            **fee_details
         }, status=status.HTTP_200_OK)
 
 
@@ -121,60 +100,28 @@ class PaymentProcessView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Re-calculate the owed amount to prevent underpayment
-        now = timezone.now()
-        duration = now - ticket.entry_time
-        duration_hours = max(1, math.ceil(duration.total_seconds() / 3600.0))
-
-        rule = PricingRule.objects.filter(
-            vehicle_type=ticket.vehicle_type,
-            spot_size=ticket.assigned_size,
-            is_active=True,
-        ).first()
-
-        if rule:
-            num_days = max(1, math.ceil(duration.total_seconds() / 86400.0))
-            calculated_fee = Decimal(duration_hours) * rule.hourly_rate
-            daily_cap = rule.max_daily_rate * num_days
-            amount_owed = min(calculated_fee, daily_cap)
-
-            if amount_paid < amount_owed:
-                return Response(
-                    {
-                        "error": "Insufficient payment.",
-                        "amount_paid": str(amount_paid),
-                        "amount_owed": str(amount_owed),
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        # Create payment record
-        payment = Payment.objects.create(
-            ticket=ticket,
-            processed_by=request.user,
-            amount=amount_paid,
-            payment_method=method,
-        )
-
-        # Update Ticket
-        ticket.status = TicketStatus.PAID
-        ticket.exit_time = timezone.now()
-        ticket.save(update_fields=["status", "exit_time"])
-
-        # Release the spot in LotOccupancy with OCC retry loop
-        released = False
-        for attempt in range(MAX_RELEASE_RETRIES):
-            released = LotOccupancy.attempt_release(ticket.assigned_size)
-            if released:
-                break
-            time.sleep(0.05)  # Brief backoff before retry
-
-        if not released:
-            logger.warning(
-                "OCC release failed after %d retries for ticket %s (spot_size=%s). "
-                "Occupancy counter may be stale.",
-                MAX_RELEASE_RETRIES, ticket.ticket_code, ticket.assigned_size,
-            )
+        try:
+            payment = PaymentService.process_payment(ticket, amount_paid, method, request.user)
+        except PaymentError as e:
+            error_msg = str(e)
+            if "Insufficient payment" in error_msg:
+                # Need to parse the error message to return exact owed and paid amounts to match the original API response structure
+                try:
+                    # "Insufficient payment. Owed: {amount_owed}, Paid: {amount_paid}"
+                    parts = error_msg.split("Owed: ")[1].split(", Paid: ")
+                    amount_owed = parts[0]
+                    amount_paid_str = parts[1]
+                    return Response(
+                        {
+                            "error": "Insufficient payment.",
+                            "amount_paid": amount_paid_str,
+                            "amount_owed": amount_owed,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                except Exception:
+                    pass
+            return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({
             "message": "Payment successful. Exit gate opened.",

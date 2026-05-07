@@ -165,11 +165,11 @@ class EntryServiceTest(TestCase):
         seed_occupancy(SpotSizeType.REGULAR, total=5, current=0)
         with (
             patch(
-                "apps.gates.services.LotOccupancy.available_size_for_vehicle",
+                "apps.gates.services.InventoryService.available_size_for_vehicle",
                 return_value=SpotSizeType.REGULAR,
             ),
             patch(
-                "apps.gates.services.LotOccupancy.attempt_reserve",
+                "apps.gates.services.InventoryService.attempt_reserve",
                 return_value=False,
             ),
         ):
@@ -184,11 +184,11 @@ class EntryServiceTest(TestCase):
         seed_occupancy(SpotSizeType.REGULAR, total=5, current=0)
         with (
             patch(
-                "apps.gates.services.LotOccupancy.available_size_for_vehicle",
+                "apps.gates.services.InventoryService.available_size_for_vehicle",
                 return_value=SpotSizeType.REGULAR,
             ),
             patch(
-                "apps.gates.services.LotOccupancy.attempt_reserve",
+                "apps.gates.services.InventoryService.attempt_reserve",
                 side_effect=[False, True],
             ),
         ):
@@ -301,11 +301,11 @@ class GateEntryAPITest(TestCase):
         self._seed(SpotSizeType.REGULAR, 5)
         with (
             patch(
-                "apps.gates.services.LotOccupancy.available_size_for_vehicle",
+                "apps.gates.services.InventoryService.available_size_for_vehicle",
                 return_value=SpotSizeType.REGULAR,
             ),
             patch(
-                "apps.gates.services.LotOccupancy.attempt_reserve",
+                "apps.gates.services.InventoryService.attempt_reserve",
                 return_value=False,
             ),
         ):
