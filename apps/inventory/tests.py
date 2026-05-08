@@ -428,15 +428,16 @@ class InitLotOccupancyCommandTest(TestCase):
             current_count=4,
             version=4,
         )
-        ParkingSpot.objects.create(
-            spot_number="COMPACT-0001", size_type=SpotSizeType.COMPACT
-        )
+        for i in range(4):
+            ParkingSpot.objects.create(
+                spot_number=f"COMPACT-000{i}", size_type=SpotSizeType.COMPACT
+            )
         out = StringIO()
         call_command("init_lot_occupancy", "--keep-counts", stdout=out)
 
         row = LotOccupancy.objects.get(spot_size=SpotSizeType.COMPACT)
-        # total_capacity updated to 1 (only 1 ACTIVE spot now)
-        self.assertEqual(row.total_capacity, 1)
+        # total_capacity updated to 4 (4 ACTIVE spots now)
+        self.assertEqual(row.total_capacity, 4)
         # current_count and version untouched
         self.assertEqual(row.current_count, 4)
         self.assertEqual(row.version, 4)

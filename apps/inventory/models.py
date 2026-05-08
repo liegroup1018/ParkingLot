@@ -169,11 +169,11 @@ class LotOccupancy(models.Model):
         ordering = ["spot_size"]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(spot_size__in=SpotSizeType.values),
+                condition=models.Q(spot_size__in=SpotSizeType.values),
                 name="chk_occupancy_size_valid",
             ),
             models.CheckConstraint(
-                check=models.Q(current_count__lte=models.F("total_capacity")),
+                condition=models.Q(current_count__lte=models.F("total_capacity")),
                 name="chk_occupancy_count_lte_capacity",
             ),
         ]

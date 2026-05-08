@@ -26,6 +26,10 @@ While this "Fat Model / Fat View" approach is acceptable for prototypes, it viol
   - Created `PricingService.calculate_fee(ticket)` to encapsulate dynamic fee calculation.
   - Created `PaymentService.process_payment(ticket, amount_paid, method, user)` to handle transaction validation, ticket state updates, and trigger the spot release.
 - **`views.py`**: Refactored `TicketScanView` and `PaymentProcessView` to consume the new `PricingService` and `PaymentService`.
+- **`tests.py`**: 
+  - Implemented a comprehensive test suite covering `PricingService`, `PaymentService`, and API endpoints. 
+  - Validated dynamic fee calculation logic (daily caps, multi-day processing) and OCC transaction spot release. 
+  - Addressed test pollution and `timezone.now()` time-rounding anomalies by explicitly resetting DB rules and utilizing precise duration tracking.
 
 ### `apps/gates/`
 - **`services.py`**: Updated `EntryService` OCC retry loops to call `InventoryService` methods instead of directly interacting with `LotOccupancy`.
