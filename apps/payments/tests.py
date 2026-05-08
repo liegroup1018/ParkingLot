@@ -13,6 +13,7 @@ Covers:
 from decimal import Decimal
 from datetime import timedelta
 import datetime
+from freezegun import freeze_time
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -58,6 +59,7 @@ def make_attendant(**kwargs) -> User:
 # Service Tests
 # ──────────────────────────────────────────────────────────────────
 
+@freeze_time("2026-05-08 12:00:00")
 class PricingServiceTest(TestCase):
     def setUp(self):
         PricingRule.objects.all().delete()
@@ -78,8 +80,8 @@ class PricingServiceTest(TestCase):
         )
 
     def test_calculate_fee_under_daily_cap(self):
-        # 2 hours 59 minutes ensures math.ceil handles millisecond elapsed time predictably
-        self.ticket.entry_time = timezone.now() - timedelta(hours=2, minutes=59)
+        # 2.5 hours should round up to 3 hours
+        self.ticket.entry_time = timezone.now() - timedelta(hours=2, minutes=30)
         self.ticket.save()
 
         fee = PricingService.calculate_fee(self.ticket)
@@ -87,8 +89,8 @@ class PricingServiceTest(TestCase):
         self.assertEqual(fee["amount_owed"], Decimal("30.00"))
 
     def test_calculate_fee_hits_daily_cap(self):
-        # 5 hours 59 minutes rounds up to 6 hours
-        self.ticket.entry_time = timezone.now() - timedelta(hours=5, minutes=59)
+        # 6 hours = 60 dollars, but daily cap is 50
+        self.ticket.entry_time = timezone.now() - timedelta(hours=6)
         self.ticket.save()
 
         fee = PricingService.calculate_fee(self.ticket)
@@ -96,8 +98,8 @@ class PricingServiceTest(TestCase):
         self.assertEqual(fee["amount_owed"], Decimal("50.00"))
 
     def test_calculate_fee_multi_day(self):
-        # 24 hours 59 minutes rounds up to 25 hours (2 days)
-        self.ticket.entry_time = timezone.now() - timedelta(hours=24, minutes=59)
+        # 25 hours = 2 days, 2 days cap = 100
+        self.ticket.entry_time = timezone.now() - timedelta(hours=25)
         self.ticket.save()
 
         fee = PricingService.calculate_fee(self.ticket)
@@ -113,6 +115,7 @@ class PricingServiceTest(TestCase):
             PricingService.calculate_fee(self.ticket)
 
 
+@freeze_time("2026-05-08 12:00:00")
 class PaymentServiceTest(TestCase):
     def setUp(self):
         PricingRule.objects.all().delete()
@@ -131,8 +134,8 @@ class PaymentServiceTest(TestCase):
             assigned_size=SpotSizeType.REGULAR,
             issued_by=self.attendant,
         )
-        # Entry 1 hour 59 mins ago -> rounds to 2 hours -> fee $20
-        self.ticket.entry_time = timezone.now() - timedelta(hours=1, minutes=59)
+        # Entry 2 hours ago -> fee $20
+        self.ticket.entry_time = timezone.now() - timedelta(hours=2)
         self.ticket.save()
 
     @patch("apps.payments.services.InventoryService.attempt_release")
@@ -167,6 +170,7 @@ class PaymentServiceTest(TestCase):
 # API Views Tests
 # ──────────────────────────────────────────────────────────────────
 
+@freeze_time("2026-05-08 12:00:00")
 class PaymentsAPITest(TestCase):
     def setUp(self):
         PricingRule.objects.all().delete()
@@ -188,8 +192,8 @@ class PaymentsAPITest(TestCase):
             assigned_size=SpotSizeType.REGULAR,
             issued_by=self.attendant,
         )
-        # 59 minutes ago -> 1 hour -> $10 owed
-        self.ticket.entry_time = timezone.now() - timedelta(minutes=59)
+        # 1 hour ago -> $10 owed
+        self.ticket.entry_time = timezone.now() - timedelta(hours=1)
         self.ticket.save()
 
     def test_ticket_scan_success(self):
