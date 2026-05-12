@@ -94,7 +94,7 @@ class PaymentProcessView(APIView):
         except Ticket.DoesNotExist:
             return Response({"error": "Ticket not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not ticket.is_open:
+        if not ticket.is_open and ticket.status != TicketStatus.LOST:
             return Response(
                 {"error": "Ticket is not OPEN and cannot be paid again."},
                 status=status.HTTP_400_BAD_REQUEST

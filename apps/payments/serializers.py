@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.gates.models import Ticket
@@ -30,3 +32,12 @@ class PricingRuleUpdateSerializer(serializers.ModelSerializer):
         model = PricingRule
         fields = ['hourly_rate', 'max_daily_rate', 'is_active']
 
+    def validate_hourly_rate(self, value):
+        if value <= Decimal("0.00"):
+            raise serializers.ValidationError("Hourly rate must be greater than zero.")
+        return value
+
+    def validate_max_daily_rate(self, value):
+        if value <= Decimal("0.00"):
+            raise serializers.ValidationError("Maximum daily rate must be greater than zero.")
+        return value

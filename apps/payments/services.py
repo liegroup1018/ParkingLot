@@ -2,6 +2,7 @@ import logging
 import math
 import time
 from decimal import Decimal
+from django.db import models
 from django.utils import timezone
 from typing import Tuple, Optional
 
@@ -35,10 +36,15 @@ class PricingService:
         duration = now - ticket.entry_time
         duration_hours = max(1, math.ceil(duration.total_seconds() / 3600.0))
 
+        current_time = now.time()
         rule = PricingRule.objects.filter(
             vehicle_type=ticket.vehicle_type,
             spot_size=ticket.assigned_size,
             is_active=True,
+        ).filter(
+            models.Q(time_start__lte=current_time, time_end__gte=current_time)
+            | models.Q(time_start__gt=models.F("time_end"), time_start__lte=current_time)
+            | models.Q(time_start__gt=models.F("time_end"), time_end__gte=current_time)
         ).first()
 
         if not rule:
@@ -49,7 +55,10 @@ class PricingService:
         num_days = max(1, math.ceil(duration.total_seconds() / 86400.0))
         calculated_fee = Decimal(duration_hours) * rule.hourly_rate
         daily_cap = rule.max_daily_rate * num_days
-        final_fee = min(calculated_fee, daily_cap)
+        if ticket.status == TicketStatus.LOST:
+            final_fee = rule.max_daily_rate
+        else:
+            final_fee = min(calculated_fee, daily_cap)
 
         return {
             "duration_hours": duration_hours,

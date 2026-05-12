@@ -41,6 +41,7 @@ from apps.inventory.models import SpotSizeType, VehicleType
 class TicketStatus(models.TextChoices):
     OPEN   = "OPEN",   _("Open")   # Vehicle is currently in the lot
     PAID   = "PAID",   _("Paid")   # Vehicle paid and exited (Track 4)
+    LOST   = "LOST",   _("Lost")   # Physical ticket lost; charge max daily rate
     VOIDED = "VOIDED", _("Voided") # Admin override — ticket cancelled
 
 

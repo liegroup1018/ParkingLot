@@ -26,7 +26,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.accounts.models import AuditLog, AuditActionType
 from apps.gates.models import Ticket, TicketStatus
 from apps.inventory.models import SpotSizeType, VehicleType
-from apps.payments.models import Payment, PricingRule
+from apps.payments.models import Payment, PaymentStatus, PricingRule
 from apps.payments.services import PaymentError, PaymentService, PricingError, PricingService
 
 User = get_user_model()
@@ -114,6 +114,53 @@ class PricingServiceTest(TestCase):
         with self.assertRaises(PricingError):
             PricingService.calculate_fee(self.ticket)
 
+    def test_calculate_fee_uses_rule_matching_current_time_window(self):
+        self.rule.time_start = datetime.time(0, 0)
+        self.rule.time_end = datetime.time(1, 0)
+        self.rule.hourly_rate = Decimal("99.00")
+        self.rule.max_daily_rate = Decimal("500.00")
+        self.rule.save()
+        PricingRule.objects.create(
+            vehicle_type=VehicleType.CAR,
+            spot_size=SpotSizeType.REGULAR,
+            hourly_rate=Decimal("12.00"),
+            max_daily_rate=Decimal("50.00"),
+            is_active=True,
+            time_start=datetime.time(8, 0),
+            time_end=datetime.time(18, 0),
+        )
+        self.ticket.entry_time = timezone.now() - timedelta(hours=2)
+        self.ticket.save()
+
+        fee = PricingService.calculate_fee(self.ticket)
+
+        self.assertEqual(fee["hourly_rate"], Decimal("12.00"))
+        self.assertEqual(fee["amount_owed"], Decimal("24.00"))
+
+    @freeze_time("2026-05-08 23:30:00")
+    def test_calculate_fee_supports_overnight_time_window(self):
+        self.rule.time_start = datetime.time(0, 0)
+        self.rule.time_end = datetime.time(1, 0)
+        self.rule.hourly_rate = Decimal("99.00")
+        self.rule.max_daily_rate = Decimal("500.00")
+        self.rule.save()
+        PricingRule.objects.create(
+            vehicle_type=VehicleType.CAR,
+            spot_size=SpotSizeType.REGULAR,
+            hourly_rate=Decimal("8.00"),
+            max_daily_rate=Decimal("40.00"),
+            is_active=True,
+            time_start=datetime.time(22, 0),
+            time_end=datetime.time(2, 0),
+        )
+        self.ticket.entry_time = timezone.now() - timedelta(hours=3)
+        self.ticket.save()
+
+        fee = PricingService.calculate_fee(self.ticket)
+
+        self.assertEqual(fee["hourly_rate"], Decimal("8.00"))
+        self.assertEqual(fee["amount_owed"], Decimal("24.00"))
+
 
 @freeze_time("2026-05-08 12:00:00")
 class PaymentServiceTest(TestCase):
@@ -165,6 +212,69 @@ class PaymentServiceTest(TestCase):
             )
         self.assertIn("Insufficient payment", str(context.exception))
 
+    def test_process_payment_converts_pricing_error_to_payment_error(self):
+        PricingRule.objects.all().delete()
+
+        with self.assertRaises(PaymentError) as context:
+            PaymentService.process_payment(
+                ticket=self.ticket,
+                amount_paid=Decimal("20.00"),
+                method="CASH",
+                processed_by=self.attendant,
+            )
+
+        self.assertIn("No active pricing rule", str(context.exception))
+
+    @patch("apps.payments.services.time.sleep")
+    @patch("apps.payments.services.InventoryService.attempt_release")
+    def test_process_payment_retries_inventory_release_until_success(self, mock_release, mock_sleep):
+        mock_release.side_effect = [False, False, True]
+
+        PaymentService.process_payment(
+            ticket=self.ticket,
+            amount_paid=Decimal("20.00"),
+            method="CASH",
+            processed_by=self.attendant,
+        )
+
+        self.assertEqual(mock_release.call_count, 3)
+        self.assertEqual(mock_sleep.call_count, 2)
+
+    @patch("apps.payments.services.time.sleep")
+    @patch("apps.payments.services.InventoryService.attempt_release")
+    def test_process_payment_logs_release_failure_after_retries(self, mock_release, mock_sleep):
+        mock_release.return_value = False
+
+        with self.assertLogs("apps.payments.services", level="WARNING") as logs:
+            PaymentService.process_payment(
+                ticket=self.ticket,
+                amount_paid=Decimal("20.00"),
+                method="CASH",
+                processed_by=self.attendant,
+            )
+
+        self.assertEqual(mock_release.call_count, 3)
+        self.assertEqual(mock_sleep.call_count, 3)
+        self.assertIn("OCC release failed after 3 retries", logs.output[0])
+
+    @patch("apps.payments.services.InventoryService.attempt_release")
+    def test_process_lost_ticket_charges_single_daily_maximum(self, mock_release):
+        mock_release.return_value = True
+        self.ticket.status = TicketStatus.LOST
+        self.ticket.entry_time = timezone.now() - timedelta(days=7)
+        self.ticket.save()
+
+        payment = PaymentService.process_payment(
+            ticket=self.ticket,
+            amount_paid=Decimal("50.00"),
+            method="CASH",
+            processed_by=self.attendant,
+        )
+
+        self.assertEqual(payment.amount, Decimal("50.00"))
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, TicketStatus.PAID)
+
 
 # ──────────────────────────────────────────────────────────────────
 # API Views Tests
@@ -206,6 +316,28 @@ class PaymentsAPITest(TestCase):
         res = self.client.post("/api/v1/tickets/scan/", {"ticket_code": "INVALID123"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_ticket_scan_requires_authentication(self):
+        client = APIClient()
+        res = client.post("/api/v1/tickets/scan/", {"ticket_code": self.ticket.ticket_code}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_ticket_scan_rejects_paid_ticket(self):
+        self.ticket.status = TicketStatus.PAID
+        self.ticket.save()
+
+        res = self.client.post("/api/v1/tickets/scan/", {"ticket_code": self.ticket.ticket_code}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("not OPEN", res.data["error"])
+
+    def test_ticket_scan_reports_missing_pricing_rule(self):
+        PricingRule.objects.all().delete()
+
+        res = self.client.post("/api/v1/tickets/scan/", {"ticket_code": self.ticket.ticket_code}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("No active pricing rule", res.data["error"])
+
     @patch("apps.payments.services.InventoryService.attempt_release")
     def test_payment_process_success(self, mock_release):
         mock_release.return_value = True
@@ -229,6 +361,86 @@ class PaymentsAPITest(TestCase):
         }, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Insufficient payment", res.data["error"])
+
+    def test_payment_process_requires_authentication(self):
+        client = APIClient()
+        res = client.post("/api/v1/payments/", {
+            "ticket_id": self.ticket.ticket_code,
+            "amount_paid": "10.00",
+            "method": "CASH"
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_payment_process_not_found(self):
+        res = self.client.post("/api/v1/payments/", {
+            "ticket_id": "INVALID123",
+            "amount_paid": "10.00",
+            "method": "CASH"
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_payment_process_rejects_paid_ticket(self):
+        self.ticket.status = TicketStatus.PAID
+        self.ticket.save()
+
+        res = self.client.post("/api/v1/payments/", {
+            "ticket_id": self.ticket.ticket_code,
+            "amount_paid": "10.00",
+            "method": "CASH"
+        }, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("cannot be paid again", res.data["error"])
+
+    @patch("apps.payments.services.InventoryService.attempt_release")
+    def test_payment_process_accepts_lost_ticket_at_daily_maximum(self, mock_release):
+        mock_release.return_value = True
+        self.ticket.status = TicketStatus.LOST
+        self.ticket.entry_time = timezone.now() - timedelta(days=7)
+        self.ticket.save()
+
+        res = self.client.post("/api/v1/payments/", {
+            "ticket_id": self.ticket.ticket_code,
+            "amount_paid": "50.00",
+            "method": "CASH"
+        }, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, TicketStatus.PAID)
+
+    def test_payment_process_rejects_invalid_method(self):
+        res = self.client.post("/api/v1/payments/", {
+            "ticket_id": self.ticket.ticket_code,
+            "amount_paid": "10.00",
+            "method": "CHECK"
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["error"]["code"], "VALIDATION_ERROR")
+        self.assertIn("method", res.data["error"]["message"])
+
+    @patch("apps.payments.services.InventoryService.attempt_release")
+    def test_payment_process_accepts_digital_methods(self, mock_release):
+        mock_release.return_value = True
+
+        for method in ("CREDIT", "MOBILE"):
+            with self.subTest(method=method):
+                ticket = Ticket.objects.create(
+                    vehicle_type=VehicleType.CAR,
+                    assigned_size=SpotSizeType.REGULAR,
+                    issued_by=self.attendant,
+                )
+                ticket.entry_time = timezone.now() - timedelta(hours=1)
+                ticket.save()
+
+                res = self.client.post("/api/v1/payments/", {
+                    "ticket_id": ticket.ticket_code,
+                    "amount_paid": "10.00",
+                    "method": method
+                }, format="json")
+
+                self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+                self.assertTrue(Payment.objects.filter(ticket=ticket, payment_method=method).exists())
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -269,6 +481,21 @@ class AdminPaymentsAPITest(TestCase):
         self.assertEqual(log.user, self.admin)
         self.assertEqual(log.details["new"]["hourly_rate"], "7.50")
 
+    def test_pricing_rule_read_requires_authentication(self):
+        res = APIClient().get(f"/api/v1/pricing-rules/{self.rule.id}/")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_can_read_pricing_rule(self):
+        res = self.att_client.get(f"/api/v1/pricing-rules/{self.rule.id}/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["hourly_rate"], "5.00")
+
+    def test_pricing_update_validation_blocks_negative_rates(self):
+        res = self.admin_client.patch(f"/api/v1/pricing-rules/{self.rule.id}/", {"hourly_rate": "-1.00"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["error"]["code"], "VALIDATION_ERROR")
+        self.assertIn("hourly_rate", res.data["error"]["message"])
+
     def test_revenue_report_access(self):
         res = self.att_client.get("/api/v1/reports/revenue/")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
@@ -276,9 +503,80 @@ class AdminPaymentsAPITest(TestCase):
         res = self.admin_client.get("/api/v1/reports/revenue/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
+    def test_revenue_report_aggregates_successful_payments_by_date(self):
+        ticket1 = Ticket.objects.create(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            assigned_size=SpotSizeType.COMPACT,
+            issued_by=self.attendant,
+        )
+        ticket2 = Ticket.objects.create(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            assigned_size=SpotSizeType.COMPACT,
+            issued_by=self.attendant,
+        )
+        ticket3 = Ticket.objects.create(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            assigned_size=SpotSizeType.COMPACT,
+            issued_by=self.attendant,
+        )
+        payment1 = Payment.objects.create(
+            ticket=ticket1,
+            processed_by=self.attendant,
+            amount=Decimal("10.00"),
+            payment_method="CASH",
+            status=PaymentStatus.SUCCESS,
+        )
+        payment2 = Payment.objects.create(
+            ticket=ticket2,
+            processed_by=self.attendant,
+            amount=Decimal("15.50"),
+            payment_method="CREDIT",
+            status=PaymentStatus.SUCCESS,
+        )
+        payment3 = Payment.objects.create(
+            ticket=ticket3,
+            processed_by=self.attendant,
+            amount=Decimal("99.00"),
+            payment_method="MOBILE",
+            status=PaymentStatus.FAILED,
+        )
+        Payment.objects.filter(id=payment1.id).update(payment_time=timezone.datetime(2026, 5, 7, 10, tzinfo=datetime.timezone.utc))
+        Payment.objects.filter(id=payment2.id).update(payment_time=timezone.datetime(2026, 5, 7, 12, tzinfo=datetime.timezone.utc))
+        Payment.objects.filter(id=payment3.id).update(payment_time=timezone.datetime(2026, 5, 7, 13, tzinfo=datetime.timezone.utc))
+
+        res = self.admin_client.get("/api/v1/reports/revenue/?start_date=2026-05-07&end_date=2026-05-07")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, [{"date": "2026-05-07", "total_revenue": 25.5, "payment_count": 2}])
+
     def test_peak_hours_report_access(self):
         res = self.att_client.get("/api/v1/reports/peak-hours/")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
         res = self.admin_client.get("/api/v1/reports/peak-hours/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_peak_hours_report_groups_ticket_entries_for_requested_date(self):
+        ticket1 = Ticket.objects.create(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            assigned_size=SpotSizeType.COMPACT,
+            issued_by=self.attendant,
+        )
+        ticket2 = Ticket.objects.create(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            assigned_size=SpotSizeType.COMPACT,
+            issued_by=self.attendant,
+        )
+        ticket3 = Ticket.objects.create(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            assigned_size=SpotSizeType.COMPACT,
+            issued_by=self.attendant,
+        )
+        Ticket.objects.filter(id=ticket1.id).update(entry_time=timezone.datetime(2026, 5, 7, 8, 15, tzinfo=datetime.timezone.utc))
+        Ticket.objects.filter(id=ticket2.id).update(entry_time=timezone.datetime(2026, 5, 7, 8, 45, tzinfo=datetime.timezone.utc))
+        Ticket.objects.filter(id=ticket3.id).update(entry_time=timezone.datetime(2026, 5, 8, 9, 0, tzinfo=datetime.timezone.utc))
+
+        res = self.admin_client.get("/api/v1/reports/peak-hours/?date=2026-05-07")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, [{"hour": 8, "entry_count": 2}])
