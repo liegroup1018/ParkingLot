@@ -17,7 +17,13 @@ from apps.accounts.permissions import IsAdminOrAttendant, IsAdminRole
 
 from .models import Ticket
 from .serializers import GateEntrySerializer, GateOverrideSerializer, TicketReadSerializer
-from .services import EntryService, LotFullError, OCCConflictError, OverrideService
+from .services import (
+    EntryService,
+    LotFullError,
+    OCCConflictError,
+    OverrideService,
+    TicketCreationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +99,15 @@ class GateEntryView(APIView):
                     "message": str(exc),
                 },
                 status=status.HTTP_409_CONFLICT,
+            )
+        except TicketCreationError as exc:
+            return Response(
+                {
+                    "success": False,
+                    "code":    "TICKET_CREATION_FAILED",
+                    "message": str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         read_serializer = TicketReadSerializer(ticket)

@@ -10,6 +10,7 @@ Covers:
   - GET  /api/v1/gates/tickets/ (list + filters)
   - GET  /api/v1/gates/tickets/<code>/ (found, 404)
 """
+from django.db import DatabaseError
 from unittest.mock import patch, MagicMock
 
 from django.contrib.auth import get_user_model
@@ -22,7 +23,13 @@ from apps.accounts.models import AuditActionType, AuditLog
 from apps.inventory.models import LotOccupancy, SpotSizeType, VehicleType
 
 from .models import Ticket, TicketStatus
-from .services import EntryService, LotFullError, OCCConflictError, OverrideService
+from .services import (
+    EntryService,
+    LotFullError,
+    OCCConflictError,
+    OverrideService,
+    TicketCreationError,
+)
 
 User = get_user_model()
 
@@ -195,6 +202,20 @@ class EntryServiceTest(TestCase):
             ticket = EntryService.process_entry(VehicleType.CAR, "G1", "", self.admin)
         self.assertIsInstance(ticket, Ticket)
 
+    def test_ticket_creation_failure_releases_reserved_occ_slot(self):
+        seed_occupancy(SpotSizeType.REGULAR, total=5, current=0)
+
+        with patch(
+            "apps.gates.services.EntryService._create_ticket",
+            side_effect=DatabaseError("ticket insert failed"),
+        ):
+            with self.assertRaises(TicketCreationError):
+                EntryService.process_entry(VehicleType.CAR, "G1", "", self.admin)
+
+        row = LotOccupancy.objects.get(spot_size=SpotSizeType.REGULAR)
+        self.assertEqual(row.current_count, 0)
+        self.assertEqual(Ticket.objects.count(), 0)
+
 
 # ──────────────────────────────────────────────────────────────────
 # OverrideService tests
@@ -316,6 +337,24 @@ class GateEntryAPITest(TestCase):
             )
         self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(res.data["code"], "OCC_CONFLICT")
+
+    def test_ticket_creation_failure_returns_500_and_releases_occ_slot(self):
+        self._seed(SpotSizeType.REGULAR, 5)
+
+        with patch(
+            "apps.gates.services.EntryService._create_ticket",
+            side_effect=DatabaseError("ticket insert failed"),
+        ):
+            res = self.att_client.post(
+                self.URL,
+                {"vehicle_type": "CAR", "gate_id": "GATE-01"},
+                format="json",
+            )
+
+        self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(res.data["code"], "TICKET_CREATION_FAILED")
+        row = LotOccupancy.objects.get(spot_size=SpotSizeType.REGULAR)
+        self.assertEqual(row.current_count, 0)
 
     def test_invalid_vehicle_type_returns_400(self):
         res = self.att_client.post(

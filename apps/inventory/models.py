@@ -29,7 +29,10 @@ from django.db import models
 # ──────────────────────────────────────────────────────────────────
 # Shared enumerations (used by both models and tickets in Track 3)
 # ──────────────────────────────────────────────────────────────────
-
+"""
+第一个字符串（值 / value）：这是真正存入数据库的值。例如 "COMPACT"。
+第二个字符串（标签 / label）：这是给人看的、用于前端展示的可读名称。例如 "Compact"。
+"""
 class SpotSizeType(models.TextChoices):
     """Physical spot size — determines which vehicles may park here."""
     COMPACT   = "COMPACT",   "Compact"

@@ -60,6 +60,13 @@ class OCCConflictError(Exception):
 # Task 3.2 — Entry service
 # ──────────────────────────────────────────────────────────────────
 
+class TicketCreationError(Exception):
+    """
+    Raised when an OCC slot was reserved but the Ticket row could not be created.
+    The service compensates by releasing the reserved slot before raising.
+    """
+
+
 class EntryService:
     """
     Orchestrates the full entry-gate flow:
@@ -105,11 +112,30 @@ class EntryService:
             reserved = InventoryService.attempt_reserve(size)
             if reserved:
                 # OCC succeeded — create the ticket inside a transaction
-                ticket = EntryService._create_ticket(
-                    vehicle_type=vehicle_type,
-                    assigned_size=size,
-                    issued_by=user,
-                )
+                try:
+                    ticket = EntryService._create_ticket(
+                        vehicle_type=vehicle_type,
+                        assigned_size=size,
+                        issued_by=user,
+                    )
+                except Exception as exc:
+                    released = InventoryService.attempt_release(size)
+                    if released:
+                        logger.exception(
+                            "Ticket creation failed after OCC reserve; released "
+                            "reserved slot: vehicle=%s size=%s gate=%s plate=%s",
+                            vehicle_type, size, gate_id, plate_number,
+                        )
+                    else:
+                        logger.critical(
+                            "Ticket creation failed after OCC reserve and slot "
+                            "release also failed: vehicle=%s size=%s gate=%s plate=%s",
+                            vehicle_type, size, gate_id, plate_number,
+                            exc_info=True,
+                        )
+                    raise TicketCreationError(
+                        "Ticket could not be created after reserving a spot."
+                    ) from exc
                 logger.info(
                     "Ticket %s issued: vehicle=%s size=%s gate=%s plate=%s attempt=%d",
                     ticket.ticket_code, vehicle_type, size, gate_id, plate_number, attempt,
@@ -132,8 +158,8 @@ class EntryService:
     @transaction.atomic
     def _create_ticket(vehicle_type: str, assigned_size: str, issued_by) -> Ticket:
         """
-        Atomic ticket creation.  Wrapped in its own atomic block so any
-        failure here does NOT release the OCC slot (handled by the view).
+        Atomic ticket creation. The caller must compensate the OCC reservation
+        if this write fails.
         """
         return Ticket.objects.create(
             vehicle_type=vehicle_type,

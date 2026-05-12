@@ -37,6 +37,7 @@ class InventoryService:
         # Atomic Compare-And-Swap update:
         # WHERE version = <read_version> AND current_count < total_capacity
         # guarantees we never exceed capacity even under race conditions.
+        # 返回值 updated 表示受影响的行数
         updated = LotOccupancy.objects.filter(
             spot_size=spot_size,
             version=row.version,
@@ -45,7 +46,7 @@ class InventoryService:
             current_count=models.F("current_count") + 1,
             version=models.F("version") + 1,
         )
-        return updated == 1
+        return updated == 1 # 
 
     @staticmethod
     def attempt_release(spot_size: str) -> bool:
