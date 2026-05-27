@@ -28,6 +28,7 @@ from apps.accounts.managers import AuditLogManager, CustomUserManager
 class UserRole(models.TextChoices):
     """RBAC roles supported by the system (PRD §4.2)."""
 
+    SUPERUSER = "SUPERUSER", _("System Superuser")
     ADMIN = "ADMIN", _("Management Admin")
     ATTENDANT = "ATTENDANT", _("Parking Attendant")
 
@@ -98,6 +99,11 @@ class User(AbstractUser):
         return self.role == UserRole.ADMIN
 
     @property
+    def is_system_superuser(self) -> bool:
+        """True if this user is an application-level system superuser."""
+        return self.role == UserRole.SUPERUSER and self.is_superuser
+
+    @property
     def is_attendant(self) -> bool:
         """True if this user has the Parking Attendant role."""
         return self.role == UserRole.ATTENDANT
@@ -106,6 +112,11 @@ class User(AbstractUser):
     def has_2fa_configured(self) -> bool:
         """True when a TOTP secret has been provisioned."""
         return bool(self.two_factor_secret)
+
+    @property
+    def requires_2fa(self) -> bool:
+        """True when this account type must use TOTP after setup."""
+        return self.is_admin or self.is_system_superuser
 
     def __str__(self) -> str:
         return f"{self.username} ({self.get_role_display()})"

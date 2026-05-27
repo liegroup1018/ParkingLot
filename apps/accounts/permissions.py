@@ -17,7 +17,7 @@ from apps.accounts.models import UserRole
 
 class IsAdminRole(BasePermission):
     """
-    Grants access only to users with the ADMIN role.
+    Grants access only to Management Admins and System Superusers.
 
     Used on Admin-only endpoints such as pricing rule updates,
     spot management, and revenue reports.
@@ -29,7 +29,10 @@ class IsAdminRole(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.role == UserRole.ADMIN
+            and (
+                request.user.role == UserRole.ADMIN
+                or getattr(request.user, "is_system_superuser", False)
+            )
         )
 
 
@@ -59,5 +62,8 @@ class IsAdminOrAttendant(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.role in (UserRole.ADMIN, UserRole.ATTENDANT)
+            and (
+                request.user.role in (UserRole.ADMIN, UserRole.ATTENDANT)
+                or getattr(request.user, "is_system_superuser", False)
+            )
         )

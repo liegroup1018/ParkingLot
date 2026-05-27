@@ -21,7 +21,7 @@ from rest_framework_simplejwt.serializers import (
 )
 from rest_framework_simplejwt.settings import api_settings
 
-from apps.accounts.models import AuditLog, User
+from apps.accounts.models import AuditLog, User, UserRole
 
 
 # ---------------------------------------------------------------------------
@@ -33,10 +33,16 @@ class ParkingTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     Added claims
     ------------
-    role        : "ADMIN" | "ATTENDANT"
+    role        : "SUPERUSER" | "ADMIN" | "ATTENDANT"
     username    : str
     has_2fa     : bool
     """
+
+    totp_code = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        write_only=True,
+    )
 
     @classmethod
     def get_token(cls, user: User):
@@ -55,7 +61,7 @@ class ParkingTokenObtainPairSerializer(TokenObtainPairSerializer):
         request = self.context.get("request")
 
         # For Admin accounts that have a TOTP secret, require a valid OTP code.
-        if user.is_admin and user.has_2fa_configured:
+        if user.requires_2fa and user.has_2fa_configured:
             totp_code = attrs.get("totp_code", "")
             totp = pyotp.TOTP(user.two_factor_secret)
             if not totp.verify(totp_code, valid_window=1):
@@ -134,6 +140,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if attrs["password"] != attrs.pop("password_confirm"):
             raise serializers.ValidationError(
                 {"password_confirm": "Passwords do not match."}
+            )
+        if attrs.get("role") == UserRole.SUPERUSER:
+            raise serializers.ValidationError(
+                {"role": "System superusers must be created with Django's createsuperuser workflow."}
             )
         return attrs
 

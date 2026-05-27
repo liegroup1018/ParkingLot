@@ -13,8 +13,6 @@ Run with:
   or:
     pytest apps/accounts/tests.py -v
 """
-from unittest.mock import patch
-
 import pyotp
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -42,6 +40,12 @@ def make_attendant(**kwargs) -> User:
     return User.objects.create_user(password="StrongPass99!", **defaults)
 
 
+def make_superuser(**kwargs) -> User:
+    defaults = dict(username="root1", email="root@test.com")
+    defaults.update(kwargs)
+    return User.objects.create_superuser(password="StrongPass99!", **defaults)
+
+
 # ---------------------------------------------------------------------------
 # Model tests
 # ---------------------------------------------------------------------------
@@ -56,6 +60,13 @@ class UserModelTest(TestCase):
         self.assertTrue(user.is_attendant)
         self.assertFalse(user.is_admin)
 
+    def test_create_superuser_uses_superuser_role(self):
+        user = make_superuser()
+        self.assertEqual(user.role, UserRole.SUPERUSER)
+        self.assertTrue(user.is_system_superuser)
+        self.assertFalse(user.is_admin)
+        self.assertFalse(user.is_attendant)
+
     def test_has_2fa_configured_false_by_default(self):
         user = make_admin()
         self.assertFalse(user.has_2fa_configured)
@@ -67,10 +78,22 @@ class UserModelTest(TestCase):
         user.refresh_from_db()
         self.assertTrue(user.has_2fa_configured)
 
+    def test_superuser_requires_2fa_when_configured(self):
+        user = make_superuser()
+        user.two_factor_secret = pyotp.random_base32()
+        user.save(update_fields=["two_factor_secret"])
+        user.refresh_from_db()
+        self.assertTrue(user.requires_2fa)
+
     def test_str_representation(self):
         user = make_admin()
         self.assertIn("admin1", str(user))
         self.assertIn("Management Admin", str(user))
+
+    def test_superuser_str_representation(self):
+        user = make_superuser()
+        self.assertIn("root1", str(user))
+        self.assertIn("System Superuser", str(user))
 
 
 class AuditLogModelTest(TestCase):
@@ -130,7 +153,7 @@ class LoginViewTest(TestCase):
             {"username": "att1", "password": "StrongPass99!"},
             format="json",
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
         self.assertIn("access", resp.data)
         self.assertIn("refresh", resp.data)
         self.assertEqual(resp.data["user"]["role"], UserRole.ATTENDANT)
@@ -162,7 +185,7 @@ class LoginViewTest(TestCase):
             {"username": "admin_no2fa", "password": "StrongPass99!"},
             format="json",
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
 
     def test_admin_with_2fa_needs_totp(self):
         """Admin with 2FA configured must supply a valid totp_code."""
@@ -192,7 +215,7 @@ class LoginViewTest(TestCase):
             {"username": "admin_2fa", "password": "StrongPass99!", "totp_code": valid_code},
             format="json",
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
         self.assertEqual(
             AuditLog.objects.filter(
                 action_type=AuditActionType.LOGIN_SUCCESS,
@@ -265,6 +288,19 @@ class UserManagementTest(TestCase):
         resp = self.client.get(reverse("accounts:user-list-create"))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
+    def test_superuser_can_list_users(self):
+        superuser = make_superuser()
+        resp = self.client.post(
+            reverse("accounts:login"),
+            {"username": superuser.username, "password": "StrongPass99!"},
+            format="json",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['access']}")
+
+        resp = self.client.get(reverse("accounts:user-list-create"))
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
     def test_admin_can_create_attendant(self):
         resp = self.client.post(
             reverse("accounts:user-list-create"),
@@ -278,6 +314,21 @@ class UserManagementTest(TestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+    def test_admin_cannot_create_superuser_role_through_staff_api(self):
+        resp = self.client.post(
+            reverse("accounts:user-list-create"),
+            {
+                "username": "newroot",
+                "email": "newroot@test.com",
+                "role": UserRole.SUPERUSER,
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_attendant_cannot_list_users(self):
         """Attendants must not access the user management endpoint."""
