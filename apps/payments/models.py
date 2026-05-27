@@ -4,9 +4,9 @@ from django.conf import settings
 from apps.inventory.models import SpotSizeType, VehicleType
 
 class PaymentMethod(models.TextChoices):
-    CASH = "CASH", "Cash"
-    CREDIT = "CREDIT", "Credit Card"
-    MOBILE = "MOBILE", "Mobile App"
+    CASH = "CASH", "Cash" # 现金
+    CREDIT = "CREDIT", "Credit Card" #信用卡
+    MOBILE = "MOBILE", "Mobile App" #移动支付
 
 class PaymentStatus(models.TextChoices):
     SUCCESS = "SUCCESS", "Success"

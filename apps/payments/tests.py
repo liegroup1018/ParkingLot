@@ -338,6 +338,22 @@ class PaymentsAPITest(TestCase):
         self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIn("No active pricing rule", res.data["error"])
 
+    def test_lost_ticket_create_success(self):
+        res = self.client.post("/api/v1/tickets/lost/", {"vehicle_type": VehicleType.CAR}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIn("ticket_code", res.data)
+        self.assertEqual(res.data["vehicle_type"], VehicleType.CAR)
+        self.assertEqual(res.data["assigned_size"], SpotSizeType.REGULAR)
+        self.assertEqual(res.data["amount_owed"], 50.00) # max daily rate
+        
+        ticket = Ticket.objects.get(ticket_code=res.data["ticket_code"])
+        self.assertEqual(ticket.status, TicketStatus.LOST)
+
+    def test_lost_ticket_requires_authentication(self):
+        client = APIClient()
+        res = client.post("/api/v1/tickets/lost/", {"vehicle_type": VehicleType.CAR}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
     @patch("apps.payments.services.InventoryService.attempt_release")
     def test_payment_process_success(self, mock_release):
         mock_release.return_value = True

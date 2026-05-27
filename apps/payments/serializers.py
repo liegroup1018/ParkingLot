@@ -4,9 +4,13 @@ from rest_framework import serializers
 
 from apps.gates.models import Ticket
 from apps.payments.models import Payment, PaymentMethod, PricingRule
+from apps.inventory.models import VehicleType
 
 class TicketScanSerializer(serializers.Serializer):
     ticket_code = serializers.CharField(max_length=50)
+
+class LostTicketCreateSerializer(serializers.Serializer):
+    vehicle_type = serializers.ChoiceField(choices=VehicleType.choices)
 
 class PaymentCreateSerializer(serializers.ModelSerializer):
     ticket_id = serializers.CharField(max_length=50, write_only=True)

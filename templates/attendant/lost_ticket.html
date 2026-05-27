@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Lost Ticket Processing{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Process Lost Ticket</h2>
+  <p>Select the vehicle type to generate a surrogate ticket and charge the maximum daily rate.</p>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <!-- Alert -->
+  <div class="alert alert-error" id="scan-error"></div>
+
+  <!-- Input Form -->
+  <form id="lost-form">
+    <div class="form-group">
+      <label class="form-label" for="vehicle-type">Vehicle Type</label>
+      <select class="form-select" id="vehicle-type" required style="font-size:1.25rem; padding:16px;">
+        <option value="" disabled selected>Select Vehicle Type</option>
+        <option value="MOTORCYCLE">Motorcycle</option>
+        <option value="CAR">Car</option>
+        <option value="TRUCK">Truck</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-lg btn-block" type="submit" id="generate-btn">
+      ⚠ Generate Lost Ticket
+    </button>
+  </form>
+</div>
+
+<!-- Fee Display (hidden until scan succeeds) -->
+<div class="card fee-display" id="fee-result" style="max-width:640px; margin-top:24px;">
+  <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:8px;">Amount Due (Max Daily Rate)</div>
+  <div class="fee-amount" id="fee-amount">$0.00</div>
+
+  <div class="fee-detail" id="fee-details">
+    <!-- Filled by JS -->
+  </div>
+
+  <div style="margin-top:28px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+    <button class="btn btn-success btn-lg" id="proceed-pay-btn" onclick="proceedToCheckout()">
+      💳 Proceed to Payment
+    </button>
+    <a href="{% url 'attendant:scan_ticket' %}" class="btn btn-outline btn-lg" style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center;">
+      Cancel
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Simple auth check
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+      window.location.href = "{% url 'attendant:login' %}";
+  }
+
+  let currentScannedTicket = null;
+
+  document.getElementById("lost-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorDiv = document.getElementById("scan-error");
+      const btn = document.getElementById("generate-btn");
+      
+      errorDiv.classList.remove('visible');
+      btn.disabled = true;
+      btn.innerText = "Generating...";
+
+      const vehicleType = document.getElementById("vehicle-type").value;
+
+      try {
+          const res = await fetch("/api/v1/tickets/lost/", {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({ vehicle_type: vehicleType })
+          });
+
+          if (!res.ok) {
+              const data = await res.json();
+              throw new Error(data.error || "Failed to generate lost ticket");
+          }
+
+          const data = await res.json();
+          currentScannedTicket = data;
+
+          // Show result
+          document.getElementById("fee-amount").innerText = "$" + parseFloat(data.amount_owed).toFixed(2);
+          
+          let detailsHtml = `
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span>Ticket Code (Surrogate)</span>
+                  <strong>${data.ticket_code}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span>Vehicle / Spot Size</span>
+                  <span>${data.vehicle_type} / ${data.assigned_size}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span>Max Daily Rate</span>
+                  <span>$${parseFloat(data.max_daily_rate).toFixed(2)}</span>
+              </div>
+          `;
+          document.getElementById("fee-details").innerHTML = detailsHtml;
+
+          document.getElementById("fee-result").classList.add('visible');
+          
+          // Disable form
+          document.getElementById("vehicle-type").disabled = true;
+          btn.style.display = "none";
+
+      } catch (err) {
+          errorDiv.innerText = err.message;
+          errorDiv.classList.add('visible');
+          btn.disabled = false;
+          btn.innerText = "⚠ Generate Lost Ticket";
+      }
+  });
+
+  function proceedToCheckout() {
+      if (!currentScannedTicket) return;
+      sessionStorage.setItem("pending_ticket", JSON.stringify(currentScannedTicket));
+      window.location.href = "{% url 'attendant:checkout' %}";
+  }
+</script>
+{% endblock %}

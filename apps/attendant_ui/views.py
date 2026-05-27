@@ -58,6 +58,20 @@ class AttendantScanTicketView(View):
         })
 
 
+class AttendantLostTicketView(View):
+    """
+    Render the lost ticket creation page.
+
+    Client-side logic calls:
+      - POST /api/v1/tickets/lost/
+    """
+
+    def get(self, request):
+        return render(request, "attendant/lost_ticket.html", {
+            "active_page": "scan",
+        })
+
+
 class AttendantCheckoutView(View):
     """
     Render the payment checkout page.

@@ -11,6 +11,7 @@ from .views import (
     AttendantEntryView,
     AttendantLoginView,
     AttendantScanTicketView,
+    AttendantLostTicketView,
 )
 
 app_name = "attendant"
@@ -20,5 +21,6 @@ urlpatterns = [
     path("login/", AttendantLoginView.as_view(), name="login"),
     path("app/dashboard/", AttendantDashboardView.as_view(), name="dashboard"),
     path("app/scan/", AttendantScanTicketView.as_view(), name="scan_ticket"),
+    path("app/lost/", AttendantLostTicketView.as_view(), name="lost_ticket"),
     path("app/checkout/", AttendantCheckoutView.as_view(), name="checkout"),
 ]

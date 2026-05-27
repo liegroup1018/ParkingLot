@@ -52,11 +52,12 @@ class PricingService:
             raise PricingError("No active pricing rule found for this vehicle and spot size.")
 
         # Calculate fee — max_daily_rate scales per calendar day
-        num_days = max(1, math.ceil(duration.total_seconds() / 86400.0))
-        calculated_fee = Decimal(duration_hours) * rule.hourly_rate
-        daily_cap = rule.max_daily_rate * num_days
+        num_days = max(1, math.ceil(duration.total_seconds() / 86400.0)) # 计算总的停车时间，以天为单位
+        calculated_fee = Decimal(duration_hours) * rule.hourly_rate # 按照小时计算停车费用
+        daily_cap = rule.max_daily_rate * num_days # 按照天数计的停车费用
         if ticket.status == TicketStatus.LOST:
-            final_fee = rule.max_daily_rate
+            # final_fee = rule.max_daily_rate
+            final_fee = max(calculated_fee, daily_cap)
         else:
             final_fee = min(calculated_fee, daily_cap)
 

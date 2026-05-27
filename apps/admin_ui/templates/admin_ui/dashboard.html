@@ -91,6 +91,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <!-- Revenue Line Chart -->
             <div class="bg-white rounded-xl shadow p-6 dark:bg-gray-800">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 dark:text-white">Daily Revenue Trends</h3>
                 <div class="relative h-64 w-full">
                     <canvas id="revenueChart"></canvas>
                 </div>
@@ -98,6 +99,7 @@
 
             <!-- Occupancy Pie Chart -->
             <div class="bg-white rounded-xl shadow p-6 dark:bg-gray-800">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 dark:text-white">Current Capacity Usage</h3>
                 <div class="relative h-64 w-full flex justify-center">
                     <canvas id="occupancyChart"></canvas>
                 </div>
@@ -113,26 +115,26 @@
         </div>
 
         <!-- Staff & User Management -->
-        <div class="bg-white rounded-xl shadow p-6 w-full">
+        <div class="bg-white rounded-xl shadow p-6 w-full dark:bg-gray-800">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Staff & User Management</h3>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Staff & User Management</h3>
                 <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition inline-flex items-center text-sm">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     Create New User
                 </button>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2FA Status</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">ID</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">User</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Role</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">2FA Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Joined</th>
                         </tr>
                     </thead>
-                    <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                    <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         <!-- Rows populated by JS -->
                     </tbody>
                 </table>
@@ -142,30 +144,30 @@
 
     <!-- Pricing Modal -->
     <div id="pricingModal" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-75 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 transform transition-all">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 transform transition-all dark:bg-gray-800">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Pricing Configuration</h3>
-                <button onclick="closePricingModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Pricing Configuration</h3>
+                <button onclick="closePricingModal()" class="text-gray-400 hover:text-gray-600 transition dark:hover:text-gray-200">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             
             <form id="pricingForm" class="space-y-5">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Rule ID to Update</label>
-                    <input type="number" id="ruleId" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Rule ID to Update</label>
+                    <input type="number" id="ruleId" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">New Hourly Rate ($)</label>
-                    <input type="number" step="0.01" id="hourlyRate" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">New Hourly Rate ($)</label>
+                    <input type="number" step="0.01" id="hourlyRate" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">New Maximum Daily Rate ($)</label>
-                    <input type="number" step="0.01" id="maxRate" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                    <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">New Maximum Daily Rate ($)</label>
+                    <input type="number" step="0.01" id="maxRate" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                 </div>
                 
                 <div class="pt-4 flex justify-end space-x-3">
-                    <button type="button" onclick="closePricingModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Cancel</button>
+                    <button type="button" onclick="closePricingModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition dark:border-gray-600 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600">Cancel</button>
                     <button type="submit" class="px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">Save Changes</button>
                 </div>
             </form>
@@ -174,10 +176,10 @@
 
     <!-- Create User Modal -->
     <div id="userModal" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-75 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 transform transition-all">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 transform transition-all dark:bg-gray-800">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Create New User</h3>
-                <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">Create New User</h3>
+                <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 transition dark:hover:text-gray-200">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
@@ -185,42 +187,42 @@
             <form id="userForm" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                        <input type="text" id="newUsername" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Username *</label>
+                        <input type="text" id="newUsername" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" id="newEmail" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Email</label>
+                        <input type="email" id="newEmail" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                        <input type="text" id="newFirstName" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">First Name</label>
+                        <input type="text" id="newFirstName" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                        <input type="text" id="newLastName" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Last Name</label>
+                        <input type="text" id="newLastName" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                     </div>
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                        <select id="newRole" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Role *</label>
+                        <select id="newRole" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                             <option value="ATTENDANT">Parking Attendant</option>
                             <option value="ADMIN">Management Admin</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                        <input type="password" id="newPassword" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Password *</label>
+                        <input type="password" id="newPassword" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
-                        <input type="password" id="newPasswordConfirm" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Confirm Password *</label>
+                        <input type="password" id="newPasswordConfirm" required class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 bg-gray-50 border dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
                     </div>
                 </div>
                 
                 <div id="userFormError" class="hidden text-sm text-red-600 mt-2 bg-red-50 p-2 rounded border border-red-200"></div>
 
                 <div class="pt-4 flex justify-end space-x-3">
-                    <button type="button" onclick="closeUserModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Cancel</button>
+                    <button type="button" onclick="closeUserModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition dark:border-gray-600 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600">Cancel</button>
                     <button type="submit" class="px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">Create User</button>
                 </div>
             </form>
@@ -334,6 +336,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadCurrentUser();
             fetchDashboardData();
+            updateThemeIcon();
         });
 
         async function fetchDashboardData() {
@@ -382,24 +385,26 @@
             users.forEach(u => {
                 const tr = document.createElement('tr');
                 
-                const roleBadgeClass = u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
-                const faBadge = u.has_2fa_configured 
-                    ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Enabled</span>`
-                    : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Not Setup</span>`;
+                const roleBadgeClass = u.role === 'ADMIN'
+                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+                const faBadge = u.has_2fa_configured
+                    ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Enabled</span>`
+                    : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Not Setup</span>`;
                 
                 const date = new Date(u.date_joined).toLocaleDateString();
 
                 tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#${u.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">#${u.id}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">${u.username}</div>
-                        <div class="text-sm text-gray-500">${u.email || ''}</div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">${u.username}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">${u.email || ''}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${roleBadgeClass}">${u.role_display}</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">${faBadge}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${date}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -585,6 +590,25 @@
                 errorDiv.classList.remove('hidden');
             }
         });
+
+        // -----------------------------------------------------------------------
+        // Theme toggle — persists preference in localStorage
+        // -----------------------------------------------------------------------
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const moon = document.getElementById('icon-moon');
+            const sun  = document.getElementById('icon-sun');
+            if (!moon || !sun) return;
+            // Dark mode: show sun (click to go light); Light mode: show moon (click to go dark)
+            moon.classList.toggle('hidden', isDark);
+            sun.classList.toggle('hidden', !isDark);
+        }
     </script>
 </body>
 </html>

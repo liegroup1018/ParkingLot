@@ -27,6 +27,12 @@
       🔍 Scan Ticket
     </button>
   </form>
+  
+  <div style="margin-top: 16px; text-align: center;">
+    <a href="{% url 'attendant:lost_ticket' %}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: underline;">
+      Customer lost their ticket? Process Lost Ticket
+    </a>
+  </div>
 </div>
 
 <!-- Fee Display (hidden until scan succeeds) -->

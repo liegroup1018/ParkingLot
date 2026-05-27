@@ -107,7 +107,7 @@ class Ticket(models.Model):
         help_text=_("Lifecycle state of the parking session."),
     )
     entry_time = models.DateTimeField(
-        auto_now_add=True,
+        auto_now_add=True, # 首次创建时 Django 会自动设置时间, 不需要手动设置
         db_index=True,
         help_text=_("UTC timestamp when the vehicle entered. Pricing clock starts here."),
     )

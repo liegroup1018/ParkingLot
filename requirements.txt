@@ -6,3 +6,4 @@ django-environ>=0.11,<1.0
 django-cors-headers>=4.3,<5.0
 Pillow>=10.0
 pyotp>=2.9
+playwright>=1.44,<2.0

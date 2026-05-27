@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
 from apps.gates.models import Ticket, TicketStatus
-from apps.inventory.models import LotOccupancy
+from apps.inventory.models import LotOccupancy, VEHICLE_SPOT_PRIORITY
 from apps.payments.models import PricingRule, Payment
 from apps.accounts.permissions import IsAdminRole
 from apps.accounts.models import AuditLog, AuditActionType
@@ -22,7 +22,8 @@ from apps.payments.serializers import (
     TicketScanSerializer, 
     PaymentCreateSerializer,
     PricingRuleReadSerializer,
-    PricingRuleUpdateSerializer
+    PricingRuleUpdateSerializer,
+    LostTicketCreateSerializer
 )
 from apps.payments.services import PricingService, PaymentService, PricingError, PaymentError
 
@@ -66,6 +67,49 @@ class TicketScanView(APIView):
             "entry_time": ticket.entry_time,
             **fee_details
         }, status=status.HTTP_200_OK)
+
+
+class LostTicketCreateView(APIView):
+    """
+    POST /api/v1/tickets/lost/
+    Generates a surrogate lost ticket and returns the max daily fee.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = LostTicketCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        vehicle_type = serializer.validated_data["vehicle_type"]
+
+        # Determine the default assigned size for this vehicle type
+        assigned_size = VEHICLE_SPOT_PRIORITY[vehicle_type][0]
+
+        # Create the surrogate lost ticket
+        ticket = Ticket.objects.create(
+            vehicle_type=vehicle_type,
+            assigned_size=assigned_size,
+            status=TicketStatus.LOST,
+            issued_by=request.user
+        )
+
+        # Calculate fee (PricingService defaults to max_daily_rate for LOST)
+        try:
+            fee_details = PricingService.calculate_fee(ticket)
+        except PricingError as e:
+            ticket.delete() # cleanup
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response({
+            "ticket_id": ticket.id,
+            "ticket_code": ticket.ticket_code,
+            "vehicle_type": ticket.vehicle_type,
+            "assigned_size": ticket.assigned_size,
+            "entry_time": ticket.entry_time,
+            **fee_details
+        }, status=status.HTTP_201_CREATED)
 
 
 logger = logging.getLogger(__name__)

@@ -1,0 +1,32 @@
+# Lost Ticket Feature Implementation Walkthrough
+
+The "Lost Ticket" scenario has been fully implemented across both the backend APIs and the Attendant UI dashboard. This feature allows attendants to seamlessly process exiting vehicles that have lost their physical tickets while adhering to the PRD requirement to charge the maximum daily rate.
+
+## Key Accomplishments
+
+### 1. Surrogate Ticket Generation (Backend)
+- Developed a new API endpoint `POST /api/v1/tickets/lost/`.
+- Instead of searching for an unknown ticket, the system now accepts a `vehicle_type` and instantly generates a new **surrogate ticket** with the `status=LOST`.
+- This surrogate automatically invokes the `PricingService`, which returns the max daily rate (capped amount).
+- Tests were added to ensure proper rate application and API validation.
+
+### 2. Dedicated UI Integration (Frontend)
+- Built `templates/attendant/lost_ticket.html`, a dedicated UI interface styled consistently with the rest of the application.
+- Attendants can select the vehicle type (Motorcycle, Car, Truck) from a dropdown to generate the ticket.
+- Added a direct link from the standard scan interface (`scan_ticket.html`) so attendants can quickly pivot if a driver states they lost their ticket.
+- The UI instantly displays the surrogate `ticket_code` alongside the calculated max daily rate, allowing the attendant to proceed to the existing Checkout flow.
+
+### 3. Inventory Release & Concurrency
+- Because the system generates a proper surrogate `Ticket` object, proceeding to `PaymentProcessView` correctly invokes the existing `PaymentService`.
+- The payment service automatically applies OCC (Optimistic Concurrency Control) to release the correct spot size inventory, ensuring the exit gate can open and parking spot counts remain perfectly accurate.
+
+### 4. System Documentation
+- Updated `system_design.md` to formally document this surrogate ticket pattern.
+- Generated `track11_implementation_record.md` to log all engineering decisions related to this flow.
+
+## Verification
+
+All `apps/payments/` tests passed successfully, confirming:
+- The `/api/v1/tickets/lost/` endpoint correctly generates the ticket and returns the max daily fee.
+- The surrogate ticket can be successfully paid using the `/api/v1/payments/` endpoint.
+- Inventory is properly restored when a lost ticket is paid.

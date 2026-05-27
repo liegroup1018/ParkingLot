@@ -39,6 +39,7 @@ The Parking Lot Management System is logically divided into the following core m
 
 * **Use Case:** System generates and issues a physical ticket containing an entry timestamp and vehicle class.
 * **Use Case:** Attendant scans the ticket at the exit.
+* **Use Case:** System generates a surrogate "Lost Ticket" and charges the maximum daily rate when a physical ticket is lost.
 * **Use Case:** Pricing Engine calculates the fee based on dynamic rules (Vehicle Type + Spot Type + Time of Day).
 * **Use Case:** System caps the calculated fee using the "Maximum Daily Rate" rule.
 * **Use Case:** Admin dynamically configures or updates the pricing matrix/rules.
@@ -143,6 +144,9 @@ The Parking Lot Management System is logically divided into the following core m
 * `POST /api/v1/tickets/scan`
   * **Payload:** `{ "ticket_code": "TKT-987654" }`
   * **Action:** Looks up the ticket, calculates the dynamic fee based on duration and vehicle size (capped at the daily maximum), and returns the amount owed to the attendant's screen.
+* `POST /api/v1/tickets/lost/`
+  * **Payload:** `{ "vehicle_type": "Car" }`
+  * **Action:** Generates a surrogate ticket with `status=LOST`, calculates the fee (defaults to max daily rate), and returns the new `ticket_code` and amount owed for payment processing.
 * `POST /api/v1/payments`
   * **Payload:** `{ "ticket_id": "TKT-987654", "amount_paid": 25.00, "method": "Cash", "processed_by": "ATT-01" }`
   * **Action:** Records the transaction into the `Payments` table, updates the ticket status to `Paid`, restores the `ParkingSpots` inventory count, and automatically signals the exit gate to open.
@@ -181,3 +185,7 @@ The HTML interface is strictly designed as a separate track after the core backe
 * **Interfaces:**
   * **Attendant Dashboard:** An HTML interface for staff to input ticket numbers, view dynamic pricing returned by `/api/v1/tickets/scan`, and submit payments to `/api/v1/payments`.
   * **Admin Dashboard:** While we can optionally use `django.contrib.admin` for basic CRUD, we will strictly build a custom HTML/CSS dashboard interface for management to view real-time occupancy, update pricing dynamically, and visualize revenue analytics.
+
+### 5.1 HTML Interaction Testing Strategy
+
+All new HTML pages or interactive UI flows **MUST** be accompanied by browser-level tests using the **Playwright** framework. This ensures that the integration between the DOM, JavaScript API calls, and the backend Django server functions correctly in a realistic browser environment. Tests should simulate user behaviors such as form submissions, clicking buttons, handling asynchronous API responses, and navigating between pages (e.g., transitioning from a lost ticket generation to the checkout flow).
