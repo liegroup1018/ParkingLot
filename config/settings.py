@@ -54,6 +54,7 @@ LOCAL_APPS = [
     "apps.gates.apps.GatesConfig",         # Track 3: Entry Gates — Tickets + OCC entry flow
     "apps.payments.apps.PaymentsConfig",   # Track 4: Pricing Engine & Exit Flow
     "apps.admin_ui.apps.AdminUiConfig",    # Track 6: Admin Dashboard
+    "apps.core",                           # Core module for shared logic & commands
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

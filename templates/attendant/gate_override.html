@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Gate Override{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Gate Override</h2>
+  <p>Admin use only. Manually open a gate without issuing a ticket. Every action is recorded in the audit log.</p>
+</div>
+
+<div style="max-width:560px;">
+
+  <!-- Admin guard banner — hidden once role confirmed by JS -->
+  <div id="admin-guard" class="alert"
+       style="display:none; border-color:var(--danger,#e74c3c);
+              background:rgba(231,76,60,0.1); color:var(--danger,#e74c3c);">
+    ⛔ This page requires Admin privileges. Your action will be rejected by the server.
+  </div>
+
+  <!-- Error banner -->
+  <div class="alert alert-error" id="override-error"></div>
+
+  <!-- Form card -->
+  <div class="card" id="override-form-card">
+
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:24px;
+                padding:12px 16px; border-radius:8px;
+                background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.3);">
+      <span style="font-size:1.25rem;">⚠️</span>
+      <span style="font-size:0.875rem; color:var(--text-secondary);">
+        This action opens a physical gate <strong>immediately</strong> and is permanently logged.
+      </span>
+    </div>
+
+    <form id="override-form" autocomplete="off">
+
+      <div class="form-group">
+        <label class="form-label" for="override-gate-id">Gate ID</label>
+        <select class="form-input" id="override-gate-id" required>
+          <option value="">— Select gate —</option>
+          <option value="GATE-NORTH-01">GATE-NORTH-01</option>
+          <option value="GATE-NORTH-02">GATE-NORTH-02</option>
+          <option value="GATE-SOUTH-01">GATE-SOUTH-01</option>
+          <option value="GATE-EAST-01">GATE-EAST-01</option>
+          <option value="GATE-WEST-01">GATE-WEST-01</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Direction</label>
+        <div style="display:flex; gap:16px; margin-top:8px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;
+                        flex:1; padding:12px 16px; border-radius:8px;
+                        border:2px solid var(--border-subtle);
+                        transition:border-color 0.2s;"
+                 id="dir-entry-label">
+            <input type="radio" name="direction" value="ENTRY" id="dir-entry" required
+                   style="accent-color:var(--accent-hover);">
+            <span>🚗 Entry</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;
+                        flex:1; padding:12px 16px; border-radius:8px;
+                        border:2px solid var(--border-subtle);
+                        transition:border-color 0.2s;"
+                 id="dir-exit-label">
+            <input type="radio" name="direction" value="EXIT" id="dir-exit"
+                   style="accent-color:var(--accent-hover);">
+            <span>🚪 Exit</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="override-reason">
+          Reason <span style="color:var(--danger,#e74c3c);">*</span>
+        </label>
+        <textarea class="form-input" id="override-reason" rows="3" required
+                  placeholder="e.g. Emergency vehicle access / Stuck barrier / VIP clearance"
+                  style="resize:vertical; min-height:80px;"></textarea>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+          Required. Saved to the audit log.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="override-plate">
+          Plate Number <span style="color:var(--text-muted); font-weight:400;">(optional)</span>
+        </label>
+        <input class="form-input" type="text" id="override-plate"
+               placeholder="e.g. POLICE 01"
+               style="text-transform:uppercase; letter-spacing:0.05em;">
+      </div>
+
+      <button class="btn btn-lg btn-block" type="submit" id="override-btn"
+              style="background:var(--danger,#e74c3c); color:#fff;
+                     border-color:var(--danger,#e74c3c);">
+        🔓 Open Gate Now
+      </button>
+    </form>
+  </div>
+
+  <!-- Success card -->
+  <div class="card gate-success" id="override-success" style="display:none; text-align:center;">
+    <div class="gate-icon" style="font-size:2.5rem; margin-bottom:12px;">🔓</div>
+    <h3 style="font-size:1.25rem; font-weight:700; margin-bottom:8px;">Gate Opened</h3>
+    <p style="color:var(--text-muted); margin-bottom:24px;">
+      Override signal sent. Action recorded in the audit log.
+    </p>
+
+    <div class="gate-receipt" id="override-receipt"
+         style="text-align:left; margin-bottom:24px;"></div>
+
+    <button class="btn btn-outline btn-lg" onclick="resetOverride()">
+      ↩ Perform Another Override
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const form        = document.getElementById('override-form');
+  const errorEl     = document.getElementById('override-error');
+  const overrideBtn = document.getElementById('override-btn');
+  const formCard    = document.getElementById('override-form-card');
+  const successCard = document.getElementById('override-success');
+
+  // ── Highlight selected direction radio ──────────────────────────
+  document.querySelectorAll('input[name="direction"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.getElementById('dir-entry-label').style.borderColor =
+        document.getElementById('dir-entry').checked
+          ? 'var(--accent-hover)' : 'var(--border-subtle)';
+      document.getElementById('dir-exit-label').style.borderColor =
+        document.getElementById('dir-exit').checked
+          ? 'var(--accent-hover)' : 'var(--border-subtle)';
+    });
+  });
+
+  // ── Admin guard: show a warning banner if user is not ADMIN ─────
+  // (The API enforces IsAdminRole; this is just a UX hint.)
+  (async function checkAdminRole() {
+    const res = await apiFetch(`${API_BASE}/auth/users/me/`);
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    const role = data.role || data.data?.role || '';
+    if (role !== 'ADMIN') {
+      document.getElementById('admin-guard').style.display = '';
+    }
+  })();
+
+  // ── Form submission ─────────────────────────────────────────────
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.remove('visible');
+
+    const gateId    = document.getElementById('override-gate-id').value;
+    const direction = document.querySelector('input[name="direction"]:checked')?.value;
+    const reason    = document.getElementById('override-reason').value.trim();
+    const plate     = document.getElementById('override-plate').value.trim().toUpperCase();
+
+    if (!direction) {
+      errorEl.textContent = '⚠ Please select a direction (Entry or Exit).';
+      errorEl.classList.add('visible');
+      return;
+    }
+
+    overrideBtn.disabled = true;
+    overrideBtn.innerHTML = '<span class="spinner"></span> Sending signal…';
+
+    const payload = { direction, reason };
+    if (plate) payload.plate_number = plate;
+
+    try {
+      // Gate ID is a URL path parameter: POST /api/v1/gates/<gate_id>/override/
+      const res = await apiFetch(
+        `${API_BASE}/gates/${encodeURIComponent(gateId)}/override/`,
+        { method: 'POST', body: JSON.stringify(payload) }
+      );
+
+      if (!res) return;
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data.error || data.detail || data.message || 'Override failed.';
+        errorEl.textContent = `⚠ ${msg}`;
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      // 200 — success
+      const summary = data.data || {};
+      const openedAt = new Date().toLocaleString();
+
+      document.getElementById('override-receipt').innerHTML = `
+        <div class="receipt-row"><span class="label">Gate</span><span class="value">${gateId}</span></div>
+        <div class="receipt-row"><span class="label">Direction</span><span class="value">${direction}</span></div>
+        <div class="receipt-row"><span class="label">Reason</span><span class="value">${reason}</span></div>
+        ${plate ? `<div class="receipt-row"><span class="label">Plate</span><span class="value">${plate}</span></div>` : ''}
+        <div class="receipt-row"><span class="label">Override ID</span><span class="value" style="font-family:'JetBrains Mono',monospace;">${summary.override_id || summary.id || '—'}</span></div>
+        <div class="receipt-row"><span class="label">Time</span><span class="value">${openedAt}</span></div>
+      `;
+
+      formCard.style.display = 'none';
+      successCard.style.display = '';
+
+    } catch (err) {
+      errorEl.textContent = '⚠ Network error — gate signal may not have been sent. Please verify manually.';
+      errorEl.classList.add('visible');
+    } finally {
+      overrideBtn.disabled = false;
+      overrideBtn.innerHTML = '🔓 Open Gate Now';
+    }
+  });
+
+  function resetOverride() {
+    form.reset();
+    errorEl.classList.remove('visible');
+    successCard.style.display = 'none';
+    formCard.style.display = '';
+    // Reset direction border highlights
+    document.getElementById('dir-entry-label').style.borderColor = 'var(--border-subtle)';
+    document.getElementById('dir-exit-label').style.borderColor  = 'var(--border-subtle)';
+  }
+</script>
+{% endblock %}

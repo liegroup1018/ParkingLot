@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket Lookup{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Ticket Lookup</h2>
+  <p>Enter a ticket code to retrieve its full details. Use this when the barcode scanner is offline.</p>
+</div>
+
+<div style="max-width:560px;">
+
+  <!-- Search form card -->
+  <div class="card">
+    <div class="alert alert-error" id="lookup-error"></div>
+
+    <form id="lookup-form" autocomplete="off">
+      <div class="form-group">
+        <label class="form-label" for="lookup-code">Ticket Code</label>
+        <input class="form-input" type="text" id="lookup-code"
+               placeholder="e.g. TKT-A1B2C3D4"
+               style="font-size:1.25rem; padding:16px; text-transform:uppercase; letter-spacing:0.1em;"
+               autofocus required>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="lookup-btn">
+        🔍 Look Up Ticket
+      </button>
+    </form>
+  </div>
+
+  <!-- Result card (hidden until a result arrives) -->
+  <div class="card" id="result-card" style="display:none; margin-top:24px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h3 style="font-size:1rem; font-weight:700; color:var(--text-secondary);">TICKET DETAILS</h3>
+      <span id="result-status-badge" class="badge">—</span>
+    </div>
+
+    <!-- Ticket code hero -->
+    <div style="text-align:center; padding:16px 0 24px;">
+      <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em;
+                  color:var(--text-muted); margin-bottom:6px;">Ticket Code</div>
+      <div id="res-ticket-code"
+           style="font-family:'JetBrains Mono',monospace; font-size:1.75rem;
+                  font-weight:800; color:var(--accent-hover); letter-spacing:0.12em;">—</div>
+    </div>
+
+    <hr style="border:none; border-top:1px solid var(--border-subtle); margin-bottom:20px;">
+
+    <!-- Detail rows -->
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Vehicle Type</span>
+        <span id="res-vehicle" style="font-weight:600;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Spot Size</span>
+        <span id="res-spot" style="font-weight:600;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Plate Number</span>
+        <span id="res-plate" style="font-weight:600; font-family:'JetBrains Mono',monospace;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Gate</span>
+        <span id="res-gate" style="font-weight:600; font-family:'JetBrains Mono',monospace;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Entry Time</span>
+        <span id="res-entry" style="font-weight:600;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Exit Time</span>
+        <span id="res-exit" style="font-weight:600;">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted); font-size:0.8125rem;">Issued By</span>
+        <span id="res-issued-by" style="font-weight:600;">—</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="margin-top:28px; display:flex; gap:12px; flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="resetLookup()">🔍 Look Up Another</button>
+      <button class="btn btn-success" id="proceed-pay-btn"
+              onclick="proceedToCheckout()" style="display:none;">
+        💳 Proceed to Payment
+      </button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const form      = document.getElementById('lookup-form');
+  const errorEl   = document.getElementById('lookup-error');
+  const lookupBtn = document.getElementById('lookup-btn');
+  const resultCard = document.getElementById('result-card');
+
+  let currentTicketData = null;
+
+  // Status badge styling
+  const BADGE_CLASS = {
+    OPEN:   'badge-open',
+    PAID:   'badge-paid',
+    VOIDED: 'badge-voided',
+    LOST:   'badge-voided',
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.remove('visible');
+    resultCard.style.display = 'none';
+    currentTicketData = null;
+
+    lookupBtn.disabled = true;
+    lookupBtn.innerHTML = '<span class="spinner"></span> Looking up…';
+
+    const code = document.getElementById('lookup-code').value.trim().toUpperCase();
+
+    try {
+      const res = await apiFetch(`${API_BASE}/gates/tickets/${encodeURIComponent(code)}/`);
+      if (!res) return;
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorEl.textContent = `⚠ ${data.message || data.detail || 'Ticket not found.'}`;
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      const ticket = data.data || data;
+      currentTicketData = ticket;
+
+      // Populate fields
+      document.getElementById('res-ticket-code').textContent = ticket.ticket_code || code;
+      document.getElementById('res-vehicle').textContent     = ticket.vehicle_type || '—';
+      document.getElementById('res-spot').textContent        = ticket.assigned_size || '—';
+      document.getElementById('res-plate').textContent       = ticket.plate_number  || '—';
+      document.getElementById('res-gate').textContent        = ticket.gate_id       || '—';
+      document.getElementById('res-entry').textContent       = ticket.entry_time
+        ? new Date(ticket.entry_time).toLocaleString() : '—';
+      document.getElementById('res-exit').textContent        = ticket.exit_time
+        ? new Date(ticket.exit_time).toLocaleString()  : '—';
+      document.getElementById('res-issued-by').textContent   = ticket.issued_by_username || ticket.issued_by || '—';
+
+      // Status badge
+      const statusBadge = document.getElementById('result-status-badge');
+      const status = (ticket.status || '').toUpperCase();
+      statusBadge.textContent  = status || '—';
+      statusBadge.className    = `badge ${BADGE_CLASS[status] || ''}`;
+
+      // Show "Proceed to Payment" only for OPEN or LOST tickets
+      const payBtn = document.getElementById('proceed-pay-btn');
+      payBtn.style.display = (status === 'OPEN' || status === 'LOST') ? '' : 'none';
+
+      resultCard.style.display = '';
+
+    } catch (err) {
+      errorEl.textContent = '⚠ Network error — please try again.';
+      errorEl.classList.add('visible');
+    } finally {
+      lookupBtn.disabled = false;
+      lookupBtn.textContent = '🔍 Look Up Ticket';
+    }
+  });
+
+  function resetLookup() {
+    form.reset();
+    resultCard.style.display = 'none';
+    errorEl.classList.remove('visible');
+    currentTicketData = null;
+    document.getElementById('lookup-code').focus();
+  }
+
+  function proceedToCheckout() {
+    if (!currentTicketData) return;
+    // Reuse the same sessionStorage key that scan_ticket.html uses
+    // so checkout.html can read it without modification.
+    sessionStorage.setItem('pending_ticket', JSON.stringify(currentTicketData));
+    window.location.href = '/attendant/app/checkout/';
+  }
+</script>
+{% endblock %}

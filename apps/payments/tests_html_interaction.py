@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import unittest
 from decimal import Decimal
@@ -74,6 +75,7 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
 
     def setUp(self):
         self.context = self.browser.new_context()
+        self.context.tracing.start(screenshots=True, snapshots=True, sources=True)
         self.page = self.context.new_page()
         self.attendant = self.make_attendant()
         self.rule = self.make_pricing_rule()
@@ -86,6 +88,8 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
         )
 
     def tearDown(self):
+        os.makedirs("playwright_traces", exist_ok=True)
+        self.context.tracing.stop(path=f"playwright_traces/{self.id()}.zip")
         self.context.close()
 
     def assert_has_visible_class(self, selector):
@@ -96,7 +100,7 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
               return Boolean(el && el.classList.contains('visible'));
             }
             """,
-            selector,
+            arg=selector,
         )
 
     def assert_lacks_visible_class(self, selector):
@@ -107,7 +111,7 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
               return Boolean(el && !el.classList.contains('visible'));
             }
             """,
-            selector,
+            arg=selector,
         )
 
     def make_attendant(self, **kwargs):
@@ -138,7 +142,7 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
 
     def make_open_ticket(
         self,
-        entry_delta=datetime.timedelta(hours=2),
+        entry_delta=datetime.timedelta(hours=1, minutes=30),
         vehicle_type=VehicleType.CAR,
         assigned_size=SpotSizeType.REGULAR,
         status=TicketStatus.OPEN,
@@ -156,13 +160,10 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
     def seed_auth(self):
         refresh = RefreshToken.for_user(self.attendant)
         self.context.add_init_script(
+            f"""
+              window.localStorage.setItem('access_token', '{refresh.access_token}');
+              window.localStorage.setItem('refresh_token', '{refresh}');
             """
-            ([access, refresh]) => {
-              window.localStorage.setItem('access_token', access);
-              window.localStorage.setItem('refresh_token', refresh);
-            }
-            """,
-            [str(refresh.access_token), str(refresh)],
         )
 
     def pending_payload(self, ticket=None, amount="20.00", duration_hours=2):
@@ -179,13 +180,11 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
         }
 
     def seed_pending_ticket(self, payload):
+        payload_json = json.dumps(payload)
         self.context.add_init_script(
+            f"""
+              window.sessionStorage.setItem('pending_ticket', JSON.stringify({payload_json}));
             """
-            (payload) => {
-              window.sessionStorage.setItem('pending_ticket', JSON.stringify(payload));
-            }
-            """,
-            payload,
         )
 
     def goto_scan(self):
@@ -193,6 +192,9 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
 
     def goto_checkout(self):
         self.page.goto(f"{self.live_server_url}/attendant/app/checkout/")
+
+    def goto_lost_ticket(self):
+        self.page.goto(f"{self.live_server_url}/attendant/app/lost/")
 
     def submit_valid_scan(self):
         self.seed_auth()
@@ -326,11 +328,11 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
 
     def test_lost_ticket_payment_charges_daily_max_if_supported(self):
         lost_ticket = self.make_open_ticket(
-            entry_delta=datetime.timedelta(days=7),
+            entry_delta=datetime.timedelta(minutes=5),
             status=TicketStatus.LOST,
         )
         self.seed_auth()
-        self.seed_pending_ticket(self.pending_payload(lost_ticket, amount="50.00", duration_hours=168))
+        self.seed_pending_ticket(self.pending_payload(lost_ticket, amount="50.00", duration_hours=1))
         self.goto_checkout()
 
         self.page.locator("#pay-btn").click()
@@ -340,3 +342,42 @@ class PaymentsHtmlInteractionTests(StaticLiveServerTestCase):
         payment = Payment.objects.get(ticket=lost_ticket)
         self.assertEqual(lost_ticket.status, TicketStatus.PAID)
         self.assertEqual(payment.amount, Decimal("50.00"))
+
+    def test_generate_lost_ticket_flow(self):
+        self.seed_auth()
+        self.goto_lost_ticket()
+
+        self.page.locator("#vehicle-type").select_option("CAR")
+        self.page.locator("#generate-btn").click()
+
+        self.assert_has_visible_class("#fee-result")
+        self.page.locator("#proceed-pay-btn").click()
+
+        self.page.wait_for_url("**/attendant/app/checkout/")
+        pending = self.page.evaluate("JSON.parse(window.sessionStorage.getItem('pending_ticket'))")
+        
+        self.assertEqual(pending["vehicle_type"], VehicleType.CAR)
+        self.assertEqual(float(pending["amount_owed"]), 50.0)
+        self.assertTrue(bool(pending["ticket_code"]))
+
+        ticket = Ticket.objects.get(ticket_code=pending["ticket_code"])
+        self.assertEqual(ticket.status, TicketStatus.LOST)
+
+    def test_cash_payment_insufficient_funds_shows_error(self):
+        # Tender 0.01 — guaranteed to be less than any real parking fee regardless
+        # of which PricingRule is active (the seeded migration rule for CAR/REGULAR
+        # is 5.00/hr, so even the 1-hour minimum costs 5.00; tendering 10.00 would
+        # accidentally equal the fee and let the payment succeed).
+        self.seed_auth()
+        self.seed_pending_ticket(self.pending_payload(amount="20.00", duration_hours=2))
+        self.goto_checkout()
+
+        self.page.locator("#pay-method").select_option("CASH")
+        self.page.locator("#cash-tendered").fill("0.01")
+        self.page.locator("#pay-btn").click()
+
+        self.assert_has_visible_class("#pay-error")
+        error_text = self.page.locator("#pay-error").inner_text()
+        self.assertIn("Insufficient payment", error_text)
+        expect(self.page.locator("#pay-btn")).to_be_enabled()
+        self.assert_lacks_visible_class("#gate-open-success")

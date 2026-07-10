@@ -89,6 +89,7 @@ class EntryService:
         ------
         LotFullError     — no available size for this vehicle type.
         OCCConflictError — lot effectively full under sustained concurrency.
+        TicketCreationError -- fail to create a Ticket
         """
         # Quick pre-check before entering the retry loop
         initial_size = InventoryService.available_size_for_vehicle(vehicle_type)

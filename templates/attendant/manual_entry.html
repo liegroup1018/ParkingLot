@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Entry{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Manual Gate Entry</h2>
+  <p>Use this form when the entry barrier hardware is offline. Register a vehicle arrival manually.</p>
+</div>
+
+<div style="max-width:560px;">
+
+  <!-- Alert banner -->
+  <div class="alert alert-error" id="entry-error"></div>
+
+  <!-- Form card -->
+  <div class="card" id="entry-form-card">
+    <form id="entry-form" autocomplete="off">
+
+      <div class="form-group">
+        <label class="form-label" for="vehicle-type">Vehicle Type</label>
+        <select class="form-input" id="vehicle-type" required>
+          <option value="">— Select —</option>
+          <option value="CAR">Car</option>
+          <option value="MOTORCYCLE">Motorcycle</option>
+          <option value="TRUCK">Truck</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="gate-id">Gate ID</label>
+        <select class="form-input" id="gate-id" required>
+          <option value="">— Select —</option>
+          <option value="GATE-NORTH-01">GATE-NORTH-01</option>
+          <option value="GATE-NORTH-02">GATE-NORTH-02</option>
+          <option value="GATE-SOUTH-01">GATE-SOUTH-01</option>
+          <option value="GATE-EAST-01">GATE-EAST-01</option>
+          <option value="GATE-WEST-01">GATE-WEST-01</option>
+          <option value="MANUAL">MANUAL (no gate)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="plate-number">
+          Plate Number <span style="color:var(--text-muted); font-weight:400;">(optional)</span>
+        </label>
+        <input class="form-input" type="text" id="plate-number"
+               placeholder="e.g. B 1234 ZZ"
+               style="text-transform:uppercase; letter-spacing:0.05em;">
+      </div>
+
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="entry-btn">
+        🚗 Register Entry
+      </button>
+    </form>
+  </div>
+
+  <!-- Success card (hidden until API returns 201) -->
+  <div class="card gate-success" id="entry-success" style="display:none; text-align:center;">
+    <div class="gate-icon" style="font-size:2.5rem; margin-bottom:12px;">✅</div>
+    <h3 style="font-size:1.25rem; font-weight:700; margin-bottom:8px;">Vehicle Registered</h3>
+    <p style="color:var(--text-muted); margin-bottom:24px;">
+      Write this ticket code on a paper stub and give it to the driver.
+    </p>
+
+    <div style="background:var(--bg-elevated); border:2px dashed var(--accent-hover);
+                border-radius:12px; padding:24px 32px; margin-bottom:24px; display:inline-block;">
+      <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em;
+                  color:var(--text-muted); margin-bottom:6px;">Ticket Code</div>
+      <div id="result-ticket-code"
+           style="font-family:'JetBrains Mono',monospace; font-size:2rem;
+                  font-weight:800; color:var(--accent-hover); letter-spacing:0.12em;">
+        —
+      </div>
+    </div>
+
+    <div class="gate-receipt" id="entry-receipt" style="text-align:left; margin-bottom:24px;"></div>
+
+    <button class="btn btn-primary btn-lg" onclick="resetForm()">
+      ↩ Register Another Vehicle
+    </button>
+  </div>
+
+  <!-- Lot Full warning (hidden until API returns 409) -->
+  <div class="card" id="lot-full-card"
+       style="display:none; border:2px solid var(--danger, #e74c3c);
+              background:rgba(231,76,60,0.08); text-align:center; padding:32px;">
+    <div style="font-size:2.5rem; margin-bottom:12px;">🚫</div>
+    <h3 style="color:var(--danger, #e74c3c); font-size:1.2rem; font-weight:700; margin-bottom:8px;">
+      Lot is Full
+    </h3>
+    <p style="color:var(--text-muted); margin-bottom:20px;" id="lot-full-msg">
+      No spots available for this vehicle type.
+    </p>
+    <button class="btn btn-outline" onclick="resetLotFull()">← Try Again</button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const form       = document.getElementById('entry-form');
+  const errorEl    = document.getElementById('entry-error');
+  const entryBtn   = document.getElementById('entry-btn');
+  const formCard   = document.getElementById('entry-form-card');
+  const successCard = document.getElementById('entry-success');
+  const lotFullCard = document.getElementById('lot-full-card');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.remove('visible');
+    entryBtn.disabled = true;
+    entryBtn.innerHTML = '<span class="spinner"></span> Registering…';
+
+    const vehicleType  = document.getElementById('vehicle-type').value;
+    const gateId       = document.getElementById('gate-id').value;
+    const plateNumber  = document.getElementById('plate-number').value.trim().toUpperCase();
+
+    const payload = { vehicle_type: vehicleType, gate_id: gateId };
+    if (plateNumber) payload.plate_number = plateNumber;
+
+    try {
+      const res = await apiFetch(`${API_BASE}/gates/entry/`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (!res) return;  // redirect to login already triggered
+
+      const data = await res.json();
+
+      if (res.status === 409) {
+        // Lot full or OCC conflict
+        const code = data.code || '';
+        document.getElementById('lot-full-msg').textContent =
+          data.message || 'No spots available for this vehicle type.';
+        formCard.style.display = 'none';
+        lotFullCard.style.display = '';
+        return;
+      }
+
+      if (!res.ok) {
+        errorEl.textContent = `⚠ ${data.error || data.message || data.detail || 'Registration failed.'}`;
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      // 201 — success
+      const ticket = data.data || data;
+      document.getElementById('result-ticket-code').textContent = ticket.ticket_code || '—';
+
+      const entryTime = ticket.entry_time
+        ? new Date(ticket.entry_time).toLocaleString()
+        : new Date().toLocaleString();
+
+      document.getElementById('entry-receipt').innerHTML = `
+        <div class="receipt-row"><span class="label">Vehicle Type</span><span class="value">${ticket.vehicle_type || vehicleType}</span></div>
+        <div class="receipt-row"><span class="label">Spot Size</span><span class="value">${ticket.assigned_size || '—'}</span></div>
+        <div class="receipt-row"><span class="label">Gate</span><span class="value">${ticket.gate_id || gateId}</span></div>
+        ${plateNumber ? `<div class="receipt-row"><span class="label">Plate</span><span class="value">${plateNumber}</span></div>` : ''}
+        <div class="receipt-row"><span class="label">Entry Time</span><span class="value">${entryTime}</span></div>
+      `;
+
+      formCard.style.display = 'none';
+      successCard.style.display = '';
+
+    } catch (err) {
+      errorEl.textContent = '⚠ Network error — please try again.';
+      errorEl.classList.add('visible');
+    } finally {
+      entryBtn.disabled = false;
+      entryBtn.innerHTML = '🚗 Register Entry';
+    }
+  });
+
+  function resetForm() {
+    form.reset();
+    errorEl.classList.remove('visible');
+    successCard.style.display = 'none';
+    lotFullCard.style.display = 'none';
+    formCard.style.display = '';
+    document.getElementById('vehicle-type').focus();
+  }
+
+  function resetLotFull() {
+    lotFullCard.style.display = 'none';
+    formCard.style.display = '';
+  }
+</script>
+{% endblock %}

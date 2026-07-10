@@ -10,6 +10,9 @@ URL layout (wired via config/urls.py → /attendant/):
   GET  /attendant/scan/         → scan ticket page
   GET  /attendant/checkout/     → payment checkout page
   GET  /attendant/login/        → login page
+  GET  /attendant/app/entry/         → manual gate entry (hardware fallback)
+  GET  /attendant/app/ticket-lookup/ → ticket lookup by code
+  GET  /attendant/app/override/      → admin gate override (admin only)
 """
 from django.shortcuts import render
 from django.views import View
@@ -83,4 +86,60 @@ class AttendantCheckoutView(View):
     def get(self, request):
         return render(request, "attendant/checkout.html", {
             "active_page": "checkout",
+        })
+
+
+# ──────────────────────────────────────────────────────────────────
+# Manual Gate Operation pages — hardware fallback
+# ──────────────────────────────────────────────────────────────────
+
+class AttendantManualEntryView(View):
+    """
+    Render the manual gate entry page.
+
+    Used when the entry barrier hardware malfunctions. Attendant manually
+    registers a vehicle arrival.
+
+    Client-side logic calls:
+      - POST /api/v1/gates/entry/
+    """
+
+    def get(self, request):
+        return render(request, "attendant/manual_entry.html", {
+            "active_page": "entry",
+        })
+
+
+class AttendantTicketLookupView(View):
+    """
+    Render the ticket lookup page.
+
+    Allows any authenticated user to look up a ticket by its printed code.
+    Useful for verifying a paper stub when the barcode scanner is down.
+
+    Client-side logic calls:
+      - GET /api/v1/gates/tickets/<ticket_code>/
+    """
+
+    def get(self, request):
+        return render(request, "attendant/ticket_lookup.html", {
+            "active_page": "lookup",
+        })
+
+
+class AttendantGateOverrideView(View):
+    """
+    Render the gate override page (admin only).
+
+    Allows an admin to manually open any gate without issuing a ticket.
+    Real authorisation is enforced by IsAdminRole on the API;
+    this view merely serves the HTML shell.
+
+    Client-side logic calls:
+      - POST /api/v1/gates/<gate_id>/override/
+    """
+
+    def get(self, request):
+        return render(request, "attendant/gate_override.html", {
+            "active_page": "override",
         })

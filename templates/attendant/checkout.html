@@ -150,11 +150,21 @@
     payBtn.innerHTML = '<span class="spinner"></span> Processing...';
 
     const fee = parseFloat(pendingTicket.amount_owed || pendingTicket._display_fee || 0);
+    let amountPaid = fee;
+
+    if (payMethodSelect.value === 'CASH') {
+      const tendered = cashTenderedInput.value.trim();
+      if (tendered !== '') {
+        amountPaid = parseFloat(tendered);
+      }
+    }
+
     const payload = {
       ticket_id: pendingTicket.ticket_code,
-      amount_paid: fee,
+      amount_paid: amountPaid,
       method: payMethodSelect.value,
     };
+    console.log("PAYLOAD:", JSON.stringify(payload));
 
     try {
       const res = await apiFetch(`${API_BASE}/payments/`, {
@@ -169,7 +179,7 @@
       const data = await res.json();
 
       if (!res.ok) {
-        const msg = data.message || data.detail || 'Payment processing failed';
+        const msg = data.error || data.message || data.detail || 'Payment processing failed';
         errorEl.textContent = `Error: ${msg}`;
         errorEl.classList.add('visible');
         payBtn.disabled = false;

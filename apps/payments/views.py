@@ -184,7 +184,7 @@ class PricingRuleUpdateView(generics.RetrieveUpdateAPIView):
     """
     GET /api/v1/pricing-rules/{id}/
     PUT/PATCH /api/v1/pricing-rules/{id}/
-    Allows admins to update pricing rates dynamically.
+    .Allows admins to update pricing rates dynamically
     Writes to AuditLog on every successful mutation (PRD §4.2).
     """
     queryset = PricingRule.objects.all()

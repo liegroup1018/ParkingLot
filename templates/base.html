@@ -45,6 +45,29 @@
             Checkout
           </a>
         </li>
+
+        <!-- ── Manual Gate Operations (hardware fallback) ─────────── -->
+        <li style="margin-top:16px;">
+          <span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);padding:0 12px;display:block;margin-bottom:4px;">Gate Ops</span>
+        </li>
+        <li>
+          <a href="{% url 'attendant:manual_entry' %}" class="{% if active_page == 'entry' %}active{% endif %}">
+            <span class="nav-icon">E</span>
+            Manual Entry
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'attendant:ticket_lookup' %}" class="{% if active_page == 'lookup' %}active{% endif %}">
+            <span class="nav-icon">L</span>
+            Ticket Lookup
+          </a>
+        </li>
+        <li id="nav-override" style="display:none;">
+          <a href="{% url 'attendant:gate_override' %}" class="{% if active_page == 'override' %}active{% endif %}">
+            <span class="nav-icon">O</span>
+            Gate Override
+          </a>
+        </li>
       </ul>
 
       <div class="sidebar-user">
@@ -183,6 +206,12 @@
       document.getElementById('user-display-name').textContent = username;
       document.getElementById('user-display-role').textContent = role;
       document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
+
+      // Reveal Gate Override nav link for admins only
+      if (role === 'ADMIN') {
+        const overrideNav = document.getElementById('nav-override');
+        if (overrideNav) overrideNav.style.display = '';
+      }
     }
 
     if (!getToken()) {

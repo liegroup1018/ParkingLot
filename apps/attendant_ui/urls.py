@@ -12,6 +12,9 @@ from .views import (
     AttendantLoginView,
     AttendantScanTicketView,
     AttendantLostTicketView,
+    AttendantManualEntryView,
+    AttendantTicketLookupView,
+    AttendantGateOverrideView,
 )
 
 app_name = "attendant"
@@ -23,4 +26,8 @@ urlpatterns = [
     path("app/scan/", AttendantScanTicketView.as_view(), name="scan_ticket"),
     path("app/lost/", AttendantLostTicketView.as_view(), name="lost_ticket"),
     path("app/checkout/", AttendantCheckoutView.as_view(), name="checkout"),
+    # ── Manual gate operation pages (hardware fallback) ──────────────
+    path("app/entry/", AttendantManualEntryView.as_view(), name="manual_entry"),
+    path("app/ticket-lookup/", AttendantTicketLookupView.as_view(), name="ticket_lookup"),
+    path("app/override/", AttendantGateOverrideView.as_view(), name="gate_override"),
 ]
