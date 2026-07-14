@@ -29,8 +29,20 @@ class PricingService:
     def calculate_fee(ticket: Ticket) -> dict:
         """
         Calculates the fee for a given ticket.
-        Returns a dictionary containing fee details.
-        Raises PricingError if no active rule is found.
+
+        Args:
+            ticket (Ticket): The ticket for which to calculate the fee.
+
+        Returns:
+            dict: A dictionary containing fee details including:
+                  - duration_hours (int)
+                  - duration_days (int)
+                  - hourly_rate (Decimal)
+                  - max_daily_rate (Decimal)
+                  - amount_owed (Decimal)
+
+        Raises:
+            PricingError: If no active rule is found for the ticket's vehicle type and spot size.
         """
         now = timezone.now()
         duration = now - ticket.entry_time
@@ -78,7 +90,18 @@ class PaymentService:
     def process_payment(ticket: Ticket, amount_paid: Decimal, method: str, processed_by) -> Payment:
         """
         Processes a payment for a ticket, marks it as PAID, and releases the inventory spot.
-        Raises PaymentError if payment is insufficient.
+
+        Args:
+            ticket (Ticket): The ticket being paid for.
+            amount_paid (Decimal): The amount tendered by the customer.
+            method (str): The payment method used (e.g. CASH, CREDIT).
+            processed_by (User): The attendant processing the payment.
+
+        Returns:
+            Payment: The resulting payment record.
+
+        Raises:
+            PaymentError: If the payment amount is insufficient to cover the owed fee.
         """
         # Re-calculate the owed amount to prevent underpayment
         try:

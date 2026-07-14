@@ -1,0 +1,570 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Account Role Model Analysis - ParkingLot Internal Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#account-role-model-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ParkingLot Internal Wiki" class="md-header__button md-logo" aria-label="ParkingLot Internal Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ParkingLot Internal Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Account Role Model Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../services/inventory/" class="md-tabs__link">
+          
+  
+  
+  Services
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ParkingLot Internal Wiki" class="md-nav__button md-logo" aria-label="ParkingLot Internal Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ParkingLot Internal Wiki
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/inventory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inventory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/gates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/payments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Payments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="account-role-model-analysis">Account Role Model Analysis</h1>
+<p>Date: 2026-05-27</p>
+<h2 id="existing-problems">Existing Problems</h2>
+<p>The product and system documents describe human staff roles as Parking Attendants and Management Admins, while the running Django system also has a third operational account type: Django superusers.</p>
+<p><code>apps/accounts/models.py</code> currently models only <code>ADMIN</code> and <code>ATTENDANT</code> in <code>UserRole</code>. At the same time, <code>CustomUserManager.create_superuser()</code> sets <code>is_superuser=True</code> and assigns <code>role=ADMIN</code>. This creates several problems:</p>
+<ul>
+<li>Superusers cannot be distinguished from normal management admins by the <code>role</code> field or JWT role claim.</li>
+<li>Code that checks <code>role == ADMIN</code> grants access to admins but only includes superusers because they are mislabeled as admins.</li>
+<li>The string representation and API read serializers report superusers as "Management Admin", which hides an important privilege difference.</li>
+<li>Future admin UI filters, audit review, and incident response cannot reliably answer "which accounts are true superusers?"</li>
+<li>The staff creation API exposes the <code>role</code> field, so once <code>SUPERUSER</code> exists it must explicitly reject creating that role through the normal admin-managed staff endpoint.</li>
+</ul>
+<h2 id="design-options">Design Options</h2>
+<h3 id="option-1-keep-superuser-as-a-boolean-only">Option 1: Keep Superuser As A Boolean Only</h3>
+<p>Leave <code>UserRole</code> as <code>ADMIN | ATTENDANT</code> and treat <code>is_superuser=True</code> as a separate Django-only permission flag.</p>
+<p>This is the smallest database change, but it keeps the model and token contract ambiguous because superusers continue to appear as admins in role-based APIs.</p>
+<h3 id="option-2-add-superuser-to-userrole">Option 2: Add <code>SUPERUSER</code> To <code>UserRole</code></h3>
+<p>Add <code>SUPERUSER</code> as an explicit role choice and keep Django's built-in <code>is_superuser</code> flag as the permission bypass flag. New superusers receive <code>role=SUPERUSER</code>, existing superuser rows are migrated to that role, and admin-only permissions allow both <code>ADMIN</code> and <code>SUPERUSER</code>.</p>
+<p>This reflects the three account types directly while preserving Django's permission system.</p>
+<h3 id="option-3-split-staff-role-from-privilege-level">Option 3: Split Staff Role From Privilege Level</h3>
+<p>Replace <code>role</code> with two fields, such as <code>staff_role</code> and <code>privilege_level</code>, where superuser is a privilege level rather than a staff role.</p>
+<p>This is more normalized, but it is larger than the current need and would touch more serializers, permission classes, migrations, and UI assumptions.</p>
+<h2 id="recommended-solution">Recommended Solution</h2>
+<p>Use Option 2.</p>
+<p>The project already has a simple RBAC model based on one <code>role</code> field. Adding <code>SUPERUSER</code> keeps that API stable, makes JWT claims truthful, and avoids a broader redesign. Django's <code>is_superuser</code> remains the source of full framework-level privileges, while <code>role=SUPERUSER</code> becomes the application-level account type used for filtering, display, and API authorization decisions.</p>
+<h2 id="implementation-plan">Implementation Plan</h2>
+<ul>
+<li>Add <code>UserRole.SUPERUSER = "SUPERUSER", "System Superuser"</code>.</li>
+<li>Add <code>User.is_system_superuser</code> as an explicit helper that requires both <code>role=SUPERUSER</code> and Django's <code>is_superuser=True</code>.</li>
+<li>Change <code>CustomUserManager.create_superuser()</code> to default <code>role</code> to <code>SUPERUSER</code>.</li>
+<li>Update admin-only permission checks so both Management Admins and System Superusers can access admin endpoints.</li>
+<li>Update combined staff permission checks so all three recognized account types are allowed where appropriate.</li>
+<li>Add serializer validation that rejects <code>SUPERUSER</code> in the normal staff creation API.</li>
+<li>Add a migration that updates existing <code>is_superuser=True</code> users to <code>role=SUPERUSER</code>.</li>
+<li>Update tests to lock in the three account types and prevent staff API superuser creation.</li>
+</ul>
+<h2 id="expected-result">Expected Result</h2>
+<p>After the change, the model will accurately reflect:</p>
+<table>
+<thead>
+<tr>
+<th>Account type</th>
+<th><code>role</code></th>
+<th>Django flags</th>
+<th>Intended use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parking Attendant</td>
+<td><code>ATTENDANT</code></td>
+<td><code>is_superuser=False</code></td>
+<td>Exit-gate operations and payments</td>
+</tr>
+<tr>
+<td>Management Admin</td>
+<td><code>ADMIN</code></td>
+<td><code>is_superuser=False</code></td>
+<td>Management dashboard, pricing, reports, staff management</td>
+</tr>
+<tr>
+<td>System Superuser</td>
+<td><code>SUPERUSER</code></td>
+<td><code>is_staff=True</code>, <code>is_superuser=True</code></td>
+<td>Emergency/root administration through Django and privileged APIs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="implementation-result">Implementation Result</h2>
+<p>Implemented on 2026-05-27.</p>
+<ul>
+<li><code>UserRole</code> now includes <code>SUPERUSER</code>.</li>
+<li><code>create_superuser()</code> now defaults new superusers to <code>role=SUPERUSER</code>.</li>
+<li>Existing database rows with <code>is_superuser=True</code> are promoted to <code>role=SUPERUSER</code> by migration <code>0003_add_superuser_role</code>.</li>
+<li><code>User.is_system_superuser</code> distinguishes true system superusers from ordinary management admins.</li>
+<li><code>User.requires_2fa</code> applies 2FA enforcement to management admins and system superusers after a TOTP secret is configured.</li>
+<li>Admin-level DRF permissions now allow management admins and true system superusers.</li>
+<li>The normal staff creation API rejects <code>role=SUPERUSER</code>; superusers remain a <code>createsuperuser</code> workflow.</li>
+<li><code>totp_code</code> is now an explicit serializer field so admin 2FA login can actually receive the submitted OTP.</li>
+</ul>
+<h2 id="verification">Verification</h2>
+<pre><code class="language-text">python manage.py test apps.accounts -v 2
+Result: 25 tests ran, OK
+
+python manage.py check
+Result: System check identified no issues (0 silenced).
+</code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

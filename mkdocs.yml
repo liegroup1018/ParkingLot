@@ -1,0 +1,19 @@
+site_name: ParkingLot Internal Wiki
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+
+nav:
+  - Home: index.md
+  - Services:
+    - Inventory: services/inventory.md
+    - Gates: services/gates.md
+    - Payments: services/payments.md

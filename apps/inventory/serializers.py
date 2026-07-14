@@ -8,6 +8,8 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import LotOccupancy, ParkingSpot, SpotSizeType, SpotStatus
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -178,6 +180,7 @@ class LotOccupancySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(OpenApiTypes.INT)
     def get_available(self, obj: LotOccupancy) -> int:
         return max(0, obj.total_capacity - obj.current_count)
 

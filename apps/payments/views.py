@@ -12,6 +12,7 @@ from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes
 
 from apps.gates.models import Ticket, TicketStatus
 from apps.inventory.models import LotOccupancy, VEHICLE_SPOT_PRIORITY
@@ -35,6 +36,16 @@ class TicketScanView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Scan Ticket",
+        description="Scans a ticket and calculates the dynamic fee based on duration.",
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT
+        }
+    )
     def post(self, request, *args, **kwargs):
         serializer = TicketScanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -76,6 +87,14 @@ class LostTicketCreateView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Create Lost Ticket",
+        description="Generates a surrogate lost ticket and returns the max daily fee.",
+        responses={
+            201: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT
+        }
+    )
     def post(self, request, *args, **kwargs):
         serializer = LostTicketCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -124,6 +143,15 @@ class PaymentProcessView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Process Payment",
+        description="Processes payment, marks ticket as PAID, and restores spot inventory. Side effect: decrements lot occupancy.",
+        responses={
+            201: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT
+        }
+    )
     def post(self, request, *args, **kwargs):
         serializer = PaymentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -199,6 +227,30 @@ class PricingRuleUpdateView(generics.RetrieveUpdateAPIView):
             return PricingRuleUpdateSerializer
         return PricingRuleReadSerializer
 
+    @extend_schema(
+        summary="Retrieve Pricing Rule",
+        description="Retrieve a pricing rule by ID.",
+        responses={200: PricingRuleReadSerializer}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Update Pricing Rule",
+        description="**Requires Role:** `ADMIN`\n\nAllows admins to update pricing rates dynamically.",
+        responses={200: PricingRuleReadSerializer}
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Partial Update Pricing Rule",
+        description="**Requires Role:** `ADMIN`\n\nAllows admins to update pricing rates dynamically.",
+        responses={200: PricingRuleReadSerializer}
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
     def perform_update(self, serializer):
         rule = self.get_object()
         old_values = {
@@ -240,6 +292,15 @@ class RevenueReportView(APIView):
     """
     permission_classes = [IsAdminRole]
 
+    @extend_schema(
+        summary="Revenue Report",
+        description="**Requires Role:** `ADMIN`\n\nReturns payments aggregated by date.",
+        parameters=[
+            OpenApiParameter(name="start_date", type=str, description="Format: YYYY-MM-DD", required=False),
+            OpenApiParameter(name="end_date", type=str, description="Format: YYYY-MM-DD", required=False),
+        ],
+        responses={200: OpenApiTypes.OBJECT}
+    )
     def get(self, request, *args, **kwargs):
         qs = Payment.objects.filter(status="SUCCESS")
 
@@ -275,6 +336,14 @@ class PeakHoursReportView(APIView):
     """
     permission_classes = [IsAdminRole]
 
+    @extend_schema(
+        summary="Peak Hours Report",
+        description="**Requires Role:** `ADMIN`\n\nReturns ticket entries grouped by hour of the day.",
+        parameters=[
+            OpenApiParameter(name="date", type=str, description="Format: YYYY-MM-DD", required=False),
+        ],
+        responses={200: OpenApiTypes.OBJECT}
+    )
     def get(self, request, *args, **kwargs):
         qs = Ticket.objects.all()
         date_filter = request.query_params.get("date")

@@ -29,6 +29,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes
 
 from apps.accounts.models import AuditActionType, AuditLog, UserRole
 from apps.accounts.permissions import IsAdminRole
@@ -63,6 +64,13 @@ class LoginView(TokenObtainPairView):
     }
     """
 
+    @extend_schema(
+        summary="User Login",
+        description="Authenticate a user and return JWT access + refresh tokens. Admin accounts with 2FA configured must also supply `totp_code`."
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
     serializer_class = ParkingTokenObtainPairSerializer
     permission_classes = [AllowAny]
 
@@ -73,6 +81,13 @@ class RefreshTokenView(TokenRefreshView):
 
     Exchange a valid refresh token for a new access token.
     """
+
+    @extend_schema(
+        summary="Refresh Token",
+        description="Exchange a valid refresh token for a new access token."
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
     permission_classes = [AllowAny]
 
@@ -95,6 +110,14 @@ class LogoutView(APIView):
     # 必须登录才能访问登出接口
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="User Logout",
+        description="Blacklist the supplied refresh token, effectively ending the session.",
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+        }
+    )
     def post(self, request) -> Response:
         # 1. 从前端传的数据里拿 refresh token
         refresh_token = request.data.get("refresh")
@@ -137,6 +160,22 @@ class UserListCreateView(generics.ListCreateAPIView):
             return UserCreateSerializer
         return UserReadSerializer
 
+    @extend_schema(
+        summary="List Users",
+        description="**Requires Role:** `ADMIN`\n\nReturns a list of all staff accounts.",
+        responses={200: UserReadSerializer(many=True)}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Create User",
+        description="**Requires Role:** `ADMIN`\n\nCreates a new staff account.",
+        responses={201: UserReadSerializer}
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
     # 必须定义这个函数，以确保需要返回哪些数据
     def get_queryset(self):
         # Optimise: only fetch columns needed for the list view, ordered by username.
@@ -164,6 +203,14 @@ class CurrentUserView(generics.RetrieveAPIView):
     serializer_class = UserReadSerializer
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Get Current User",
+        description="Returns the profile of the currently authenticated user.",
+        responses={200: UserReadSerializer}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
     def get_object(self):
         return self.request.user
 
@@ -183,6 +230,17 @@ class AuditLogListView(generics.ListAPIView):
 
     serializer_class = AuditLogSerializer
     permission_classes = [IsAuthenticated, IsAdminRole]
+
+    @extend_schema(
+        summary="List Audit Logs",
+        description="**Requires Role:** `ADMIN`\n\nReturns paginated audit log entries, newest first.",
+        parameters=[
+            OpenApiParameter(name="action_type", type=str, description="Filter by action type (e.g., MANUAL_GATE_OPEN)", required=False),
+            OpenApiParameter(name="user_id", type=int, description="Filter by user ID", required=False),
+        ]
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = (
@@ -218,6 +276,11 @@ class TwoFactorSetupView(APIView):
 
     permission_classes = [IsAuthenticated, IsAdminRole]
 
+    @extend_schema(
+        summary="Setup 2FA",
+        description="**Requires Role:** `ADMIN`\n\nGenerates a fresh TOTP secret for the requesting Admin and returns a provisioning URI.",
+        responses={200: OpenApiTypes.OBJECT}
+    )
     def post(self, request) -> Response:
         user: User = request.user  # type: ignore[assignment]
         secret = pyotp.random_base32()
@@ -252,6 +315,14 @@ class TwoFactorVerifyView(APIView):
 
     permission_classes = [IsAuthenticated, IsAdminRole]
 
+    @extend_schema(
+        summary="Verify 2FA",
+        description="**Requires Role:** `ADMIN`\n\nVerify the TOTP code from the authenticator app and permanently activate 2FA for the requesting Admin.",
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT
+        }
+    )
     def post(self, request) -> Response:
         user: User = request.user  # type: ignore[assignment]
         totp_code: str = request.data.get("totp_code", "")

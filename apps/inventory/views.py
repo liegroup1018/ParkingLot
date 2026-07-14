@@ -21,6 +21,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes
 
 from apps.accounts.permissions import IsAdminRole
 
@@ -57,6 +58,26 @@ class ParkingSpotListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             return ParkingSpotCreateSerializer
         return ParkingSpotReadSerializer
+
+    @extend_schema(
+        summary="List Parking Spots",
+        description="List all parking spots. Supports pagination.",
+        parameters=[
+            OpenApiParameter(name="size_type", type=str, description="Filter by spot size (COMPACT, REGULAR, OVERSIZED)", required=False),
+            OpenApiParameter(name="status", type=str, description="Filter by status (ACTIVE, MAINTENANCE)", required=False),
+        ],
+        responses={200: ParkingSpotReadSerializer(many=True)}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Create Parking Spot",
+        description="**Requires Role:** `ADMIN`\n\nCreate a single parking spot.",
+        responses={201: ParkingSpotReadSerializer}
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = ParkingSpot.objects.all()
@@ -112,6 +133,30 @@ class ParkingSpotDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method == "PATCH":
             return ParkingSpotUpdateSerializer
         return ParkingSpotReadSerializer
+
+    @extend_schema(
+        summary="Retrieve Parking Spot",
+        description="Retrieve a parking spot by its ID.",
+        responses={200: ParkingSpotReadSerializer}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Update Parking Spot",
+        description="**Requires Role:** `ADMIN`\n\nUpdate a parking spot's status.",
+        responses={200: ParkingSpotReadSerializer}
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Delete Parking Spot",
+        description="**Requires Role:** `ADMIN`\n\nDelete a parking spot.",
+        responses={200: OpenApiTypes.OBJECT}
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
 
     # Disable full PUT — only partial PATCH allowed
     http_method_names = ["get", "patch", "delete", "head", "options"]
@@ -169,6 +214,11 @@ class BulkSpotSeedView(APIView):
     """
     permission_classes = [IsAdminRole]
 
+    @extend_schema(
+        summary="Bulk Seed Parking Spots",
+        description="**Requires Role:** `ADMIN`\n\nIdempotent bulk creation of parking spots.",
+        responses={201: OpenApiTypes.OBJECT}
+    )
     def post(self, request, *args, **kwargs):
         serializer = BulkSpotSeedSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -277,6 +327,11 @@ class PublicLotOccupancyView(APIView):
     """
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="Public Lot Occupancy Snapshot",
+        description="Unauthenticated snapshot of the occupancy for the public Lot Status page.",
+        responses={200: LotOccupancySerializer(many=True)}
+    )
     def get(self, request, *args, **kwargs):
         occupancy = LotOccupancy.objects.all().order_by("spot_size")
         serializer = LotOccupancySerializer(occupancy, many=True)

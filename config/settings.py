@@ -46,6 +46,7 @@ THIRD_PARTY_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "drf_spectacular",
 ]
 
 LOCAL_APPS = [
@@ -167,7 +168,19 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework.parsers.JSONParser",
     ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",
+}
+
+# -----------------------------------------------------------------
+# drf-spectacular configuration
+# -----------------------------------------------------------------
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Parking Lot API",
+    "DESCRIPTION": "API endpoints for the Parking Lot Management System.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 # -----------------------------------------------------------------

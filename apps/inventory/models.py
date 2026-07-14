@@ -96,12 +96,14 @@ class ParkingSpot(models.Model):
         max_length=10,
         choices=SpotSizeType.choices,
         db_index=True,
+        help_text="Physical size category of the spot.",
     )
     status = models.CharField(
         max_length=15,
         choices=SpotStatus.choices,
         default=SpotStatus.ACTIVE,
         db_index=True,
+        help_text="Operational state. Only ACTIVE spots count towards lot capacity.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -152,6 +154,7 @@ class LotOccupancy(models.Model):
         choices=SpotSizeType.choices,
         unique=True,            # One row per size — enforced at DB level
         db_index=True,
+        help_text="The size category this OCC row tracks.",
     )
     total_capacity = models.PositiveIntegerField(
         default=0,

@@ -13,6 +13,9 @@ class PaymentStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
 
 class PricingRule(models.Model):
+    """
+    Defines dynamic pricing rules based on vehicle size and time of day.
+    """
     vehicle_type = models.CharField(
         max_length=15,
         choices=VehicleType.choices,
@@ -25,9 +28,21 @@ class PricingRule(models.Model):
     )
     time_start = models.TimeField(help_text="Start time of this rule")
     time_end = models.TimeField(help_text="End time of this rule (inclusive)")
-    hourly_rate = models.DecimalField(max_digits=6, decimal_places=2)
-    max_daily_rate = models.DecimalField(max_digits=6, decimal_places=2)
-    is_active = models.BooleanField(default=True, db_index=True)
+    hourly_rate = models.DecimalField(
+        max_digits=6, 
+        decimal_places=2,
+        help_text="Standard hourly rate charged for this spot size."
+    )
+    max_daily_rate = models.DecimalField(
+        max_digits=6, 
+        decimal_places=2,
+        help_text="The absolute maximum fee that can be charged for a 24-hour period."
+    )
+    is_active = models.BooleanField(
+        default=True, 
+        db_index=True,
+        help_text="Soft-delete flag. Inactive rules are ignored during pricing calculation."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +64,9 @@ class PricingRule(models.Model):
         return f"{self.vehicle_type} in {self.spot_size}: ${self.hourly_rate}/hr"
 
 class Payment(models.Model):
+    """
+    Records a successful or failed payment attempt for a specific Ticket.
+    """
     ticket = models.ForeignKey(
         "gates.Ticket",
         on_delete=models.PROTECT,
@@ -60,17 +78,27 @@ class Payment(models.Model):
         null=True,
         blank=True,
     )
-    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    amount = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        help_text="Total amount paid."
+    )
     payment_method = models.CharField(
         max_length=15,
         choices=PaymentMethod.choices,
+        help_text="The method used to settle the payment (e.g. CASH, CREDIT)."
     )
-    payment_time = models.DateTimeField(auto_now_add=True, db_index=True)
+    payment_time = models.DateTimeField(
+        auto_now_add=True, 
+        db_index=True,
+        help_text="UTC timestamp of the transaction."
+    )
     status = models.CharField(
         max_length=15,
         choices=PaymentStatus.choices,
         default=PaymentStatus.SUCCESS,
         db_index=True,
+        help_text="The result of the transaction attempt."
     )
 
     class Meta:

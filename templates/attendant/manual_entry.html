@@ -136,7 +136,7 @@
         document.getElementById('lot-full-msg').textContent =
           data.message || 'No spots available for this vehicle type.';
         formCard.style.display = 'none';
-        lotFullCard.style.display = '';
+        lotFullCard.style.display = 'block';
         return;
       }
 
@@ -163,7 +163,7 @@
       `;
 
       formCard.style.display = 'none';
-      successCard.style.display = '';
+      successCard.style.display = 'block';
 
     } catch (err) {
       errorEl.textContent = '⚠ Network error — please try again.';
@@ -179,13 +179,13 @@
     errorEl.classList.remove('visible');
     successCard.style.display = 'none';
     lotFullCard.style.display = 'none';
-    formCard.style.display = '';
+    formCard.style.display = 'block';
     document.getElementById('vehicle-type').focus();
   }
 
   function resetLotFull() {
     lotFullCard.style.display = 'none';
-    formCard.style.display = '';
+    formCard.style.display = 'block';
   }
 </script>
 {% endblock %}

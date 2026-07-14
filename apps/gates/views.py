@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiTypes
 
 from apps.accounts.permissions import IsAdminOrAttendant, IsAdminRole
 
@@ -67,6 +68,16 @@ class GateEntryView(APIView):
     """
     permission_classes = [IsAdminOrAttendant]
 
+    @extend_schema(
+        summary="Gate Entry",
+        description="**Requires Role:** `ATTENDANT` or `ADMIN`\n\nRuns the OCC reserve + ticket creation flow. Side effect: decrements lot occupancy.",
+        responses={
+            201: TicketReadSerializer,
+            400: OpenApiTypes.OBJECT,
+            409: OpenApiTypes.OBJECT,
+            500: OpenApiTypes.OBJECT,
+        }
+    )
     def post(self, request, *args, **kwargs):
         serializer = GateEntrySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -148,6 +159,15 @@ class GateOverrideView(APIView):
     """
     permission_classes = [IsAdminRole]
 
+    @extend_schema(
+        summary="Gate Override",
+        description="**Requires Role:** `ADMIN`\n\nOpen a gate without issuing a Ticket. Logs to AuditLogs.",
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT
+        }
+    )
     def post(self, request, gate_id: str, *args, **kwargs):
         serializer = GateOverrideSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -186,6 +206,15 @@ class TicketListView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="List Tickets",
+        description="List and filter all tickets.",
+        parameters=[
+            OpenApiParameter(name="status", type=str, description="Filter by status (OPEN, PAID, VOIDED)", required=False),
+            OpenApiParameter(name="vehicle_type", type=str, description="Filter by vehicle type (CAR, MOTORCYCLE, TRUCK)", required=False),
+        ],
+        responses={200: TicketReadSerializer(many=True)}
+    )
     def get(self, request, *args, **kwargs):
         qs = Ticket.objects.select_related("issued_by").all()
 
@@ -210,6 +239,14 @@ class TicketDetailView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Retrieve Ticket",
+        description="Lookup a ticket by its human-readable code.",
+        responses={
+            200: TicketReadSerializer,
+            404: OpenApiTypes.OBJECT
+        }
+    )
     def get(self, request, ticket_code: str, *args, **kwargs):
         try:
             ticket = Ticket.objects.select_related("issued_by").get(

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.inventory.views import LotOccupancyView, PublicLotOccupancyView
 
@@ -21,6 +22,10 @@ urlpatterns = [
     # ── API: dashboard + analytics ───────────────────────────────────
     path("api/v1/lot/occupancy/",        LotOccupancyView.as_view(),       name="lot-occupancy-dashboard"),  # Track 6 (auth)
     path("api/v1/lot/occupancy/public/", PublicLotOccupancyView.as_view(), name="lot-occupancy-public"),     # Public Lot Status
+
+    # ── API Schema & Documentation ───────────────────────────────────
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 
     # ── UI shells ────────────────────────────────────────────────────
     path("attendant/",       include("apps.attendant_ui.urls")),  # Track 5 — Attendant UI
